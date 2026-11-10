@@ -2,7 +2,7 @@
 
 Read `PROJECT_STATUS.md` and `README.md` before changing the project.
 
-The POC and Phase 0 foundation are complete. The next approved implementation milestone is Phase 1: the Porcelain Cobalt design system and public homepage only. Do not begin authentication, the dashboard, Instagram integration, or recurring schedules until their phase is explicitly approved.
+The POC and Phase 0 foundation are complete. The Phase 1 Porcelain Cobalt homepage is implemented and awaiting product-owner approval. Do not begin Phase 2 authentication, the dashboard, Instagram integration, or recurring schedules until the homepage is approved.
 
 Preserve the declarative video safety boundary: model output must pass the Zod storyboard contract and map only to registered animation templates/actions. Never execute generated code.
 

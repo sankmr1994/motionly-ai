@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./styles.css";
 
 export const metadata: Metadata = {
-  title: "Motionly AI POC",
+  title: "Motionly — Ideas, taught in motion",
   description:
-    "Review deterministic educational video storyboards and animations.",
+    "Turn any concept into a clear, narrated animated video—planned, voiced, captioned, and rendered in one creative workflow.",
 };
 
 export default function RootLayout({

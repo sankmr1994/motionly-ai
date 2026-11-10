@@ -1,6 +1,6 @@
 # Motionly AI — Brand Direction Exploration
 
-**Status:** Direction selection pending  
+**Status:** 04 Porcelain Cobalt approved and implemented for the homepage
 **Last reviewed:** 2026-11-09  
 **Stitch project:** [Motionly AI Brand Directions](https://stitch.withgoogle.com/projects/11389757405079069511?pli=1)
 
@@ -199,6 +199,8 @@ After selecting a direction, the next deliverable is the definitive V1 brand gui
 The first Stitch generation applied its shared dark foundation too strongly, including to concepts originally intended to be lighter. The next comparison round must preserve the original screens and add three genuinely light alternatives. At least 80% of each new page should use a white, cream, or pale-tinted surface; dark colors are limited to text, borders, and contained product media.
 
 ### 04 Porcelain Cobalt
+
+**Selected V1 direction.** The production homepage implementation uses this light system and its cobalt storyboard rail as the visual foundation for future application screens.
 
 - Canvas: `#FCFCFA`; alternate surface: `#F1F4F8`.
 - Ink: `#152238`; primary: `#3157E7`.

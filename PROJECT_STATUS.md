@@ -3,8 +3,8 @@
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
 Last updated: **2026-11-10**  
-Current implementation phase: **Phase 0 — Foundation scaffold complete**  
-Next planned phase: **Phase 1 — Design system and public homepage**
+Current implementation phase: **Phase 1 — Homepage implemented; awaiting product-owner approval**
+Next planned phase: **Phase 2 — Authentication and onboarding, after homepage approval**
 
 ## 1. Product summary
 
@@ -19,7 +19,7 @@ V1 is creator-first and Instagram-first. Billing, subscriptions, payments, and i
 | Product and architecture | PRD, system, API, database, Instagram integration, brand direction               | Complete                                                   |
 | Video proof of concept   | Solar eclipse, compound interest, binary search                                  | Complete and verified                                      |
 | Phase 0                  | Monorepo foundation, configuration, database adapter, health checks, logging, CI | Complete                                                   |
-| Phase 1                  | Porcelain Cobalt design system and public homepage                               | Not started                                                |
+| Phase 1                  | Porcelain Cobalt design system and public homepage                               | Implemented and browser-verified; awaiting approval        |
 | Phase 2                  | Authentication and onboarding                                                    | Not started                                                |
 | Phase 3                  | Dashboard and project management                                                 | Not started                                                |
 | Phase 4                  | Idea-to-storyboard workflow                                                      | POC components exist; product workflow not implemented     |
@@ -46,7 +46,7 @@ Phase 0 preserves the working video POCs and adds the production application fou
 - one-command local verification through `pnpm verify`
 - expanded `.env.example` with current and reserved future settings
 
-Phase 0 deliberately does **not** implement Better Auth, Inngest, R2, Sentry, the homepage, or production database collections. Those belong to later feature phases.
+Phase 0 deliberately did **not** implement Better Auth, Inngest, R2, Sentry, or production database collections. Those belong to later feature phases. The homepage was added in Phase 1.
 
 ## 4. Verification record
 
@@ -68,6 +68,15 @@ Atlas connectivity check on **2026-11-10**:
 - The local/ISP resolver did not work reliably with Node's SRV lookup. Motionly now supports `MONGODB_DNS_SERVERS`, matching the proven Make My Marriage connection approach.
 - `.env.local` uses Cloudflare public DNS for Atlas SRV resolution; credentials and hostnames remain private.
 - `pnpm --filter @motionly/db check` passed: the driver connected to Atlas, selected the `motionly` database, and received a successful ping.
+
+Phase 1 homepage verification on **2026-11-10**:
+
+- Replaced the dark POC landing screen with the selected light Porcelain Cobalt homepage.
+- Implemented the storyboard/timeline hero, Describe → Direct → Publish workflow, three proven POC examples, template showcase, quality/guardrail section, final CTA, and responsive footer.
+- Added responsive desktop, tablet, and mobile layouts plus `prefers-reduced-motion` behavior and visible keyboard focus states.
+- Browser QA passed at 1440 × 900 and 390 × 844 with no horizontal overflow or console errors.
+- In-page demo navigation successfully scrolls to the product preview.
+- `pnpm verify` passed: formatting, all seven workspace type checks, 5 tests, and the optimized Next.js production build.
 
 ## 5. Existing validated video POCs
 
@@ -139,24 +148,16 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 
 ## 9. Open decisions and known gaps
 
-- MongoDB local/Atlas environment is not yet configured for the product application.
+- MongoDB Atlas is configured and connectivity-tested locally; production deployment configuration remains deferred.
 - Remotion licensing must be confirmed before commercial production launch.
 - The production Gemini model remains environment-configurable and must be confirmed against account availability and quotas.
 - Better Auth, repository implementations, Inngest workflows, R2 storage, and Sentry are architectural decisions but not yet installed or wired.
 - Instagram publishing requires an eligible Creator or Business account and Meta app review; it is design-only today.
-- Stitch screens 01–18 are approved, but none of the approved SaaS pages have been translated into production UI yet.
+- Stitch screens 01–18 are approved. The public homepage is implemented; authenticated product screens remain design-only.
 
 ## 10. Exact next action
 
-Start **Phase 1** as a bounded milestone:
-
-1. Extract Porcelain Cobalt tokens from the approved Stitch design.
-2. Build reusable typography, button, form, card, navigation, and motion primitives.
-3. Implement only the responsive public homepage.
-4. Add accessibility and reduced-motion behavior.
-5. Test desktop/mobile layouts, run `pnpm verify`, obtain product-owner approval, and update this file.
-
-Do not begin authentication or the dashboard during Phase 1.
+Review and approve the Phase 1 homepage in the local browser. Apply any requested visual refinements, rerun `pnpm verify`, and record approval here. Only after approval, begin **Phase 2: authentication and onboarding**. Do not begin the dashboard or video-creation workflow during Phase 2.
 
 ## 11. Update protocol for future developers and agents
 
