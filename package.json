@@ -1,0 +1,36 @@
+{
+  "name": "motionly-ai",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=20.9"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @motionly/web dev",
+    "dev:web": "pnpm --filter @motionly/web dev",
+    "studio": "pnpm --filter @motionly/video studio",
+    "render:solar": "pnpm --filter @motionly/video render:solar",
+    "generate:solar:audio": "tsx packages/ai/scripts/generate-solar-audio.ts",
+    "render:solar:narrated": "pnpm --filter @motionly/video render:solar:narrated",
+    "generate:compound:storyboard": "tsx packages/ai/scripts/generate-compound-storyboard.ts",
+    "generate:compound:audio": "tsx packages/ai/scripts/generate-compound-audio.ts",
+    "render:compound:narrated": "pnpm --filter @motionly/video render:compound:narrated",
+    "generate:binary-search:audio": "tsx packages/ai/scripts/generate-binary-search-audio.ts",
+    "render:binary-search:narrated": "pnpm --filter @motionly/video render:binary-search:narrated",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r --if-present test",
+    "build": "pnpm --filter @motionly/web build",
+    "verify": "pnpm format:check && pnpm typecheck && pnpm test && pnpm build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "prettier": "3.9.10",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vitest": "5.1.0",
+    "webpack": "5.112.2"
+  }
+}

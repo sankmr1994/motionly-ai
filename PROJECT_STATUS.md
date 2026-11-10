@@ -1,0 +1,171 @@
+# Motionly AI — Project status and implementation handoff
+
+> **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
+
+Last updated: **2026-11-10**  
+Current implementation phase: **Phase 0 — Foundation scaffold complete**  
+Next planned phase: **Phase 1 — Design system and public homepage**
+
+## 1. Product summary
+
+Motionly AI helps a non-technical creator turn a simple idea into a narrated, captioned, animated vertical video. The creator can review the plan, generate the video, download it, publish an approved video to Instagram, or configure a recurring review-first/automatic publishing schedule.
+
+V1 is creator-first and Instagram-first. Billing, subscriptions, payments, and internal credit systems are intentionally excluded.
+
+## 2. Status at a glance
+
+| Phase                    | Scope                                                                            | Status                                                     |
+| ------------------------ | -------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Product and architecture | PRD, system, API, database, Instagram integration, brand direction               | Complete                                                   |
+| Video proof of concept   | Solar eclipse, compound interest, binary search                                  | Complete and verified                                      |
+| Phase 0                  | Monorepo foundation, configuration, database adapter, health checks, logging, CI | Complete                                                   |
+| Phase 1                  | Porcelain Cobalt design system and public homepage                               | Not started                                                |
+| Phase 2                  | Authentication and onboarding                                                    | Not started                                                |
+| Phase 3                  | Dashboard and project management                                                 | Not started                                                |
+| Phase 4                  | Idea-to-storyboard workflow                                                      | POC components exist; product workflow not implemented     |
+| Phase 5                  | Production video-generation pipeline                                             | POC complete; hosted asynchronous pipeline not implemented |
+| Phase 6                  | Completed-video experience                                                       | Designed; not implemented                                  |
+| Phase 7                  | Manual Instagram publishing and one-time scheduling                              | Designed; not implemented                                  |
+| Phase 8                  | Recurring content generation and publishing                                      | Designed; not implemented                                  |
+| Phase 9                  | Production hardening and launch                                                  | Not started                                                |
+
+## 3. Phase 0 completed work
+
+Phase 0 preserves the working video POCs and adds the production application foundation:
+
+- pnpm/TypeScript monorepo with strict shared compiler settings
+- Next.js web application and existing Remotion preview
+- typed, server-only environment validation in `packages/config`
+- official MongoDB driver adapter in `packages/db`
+- forward-only migration runner and migration registry
+- JSON structured logger and propagated request IDs in `packages/observability`
+- `GET /api/health/live` liveness endpoint
+- `GET /api/health/ready` dependency-readiness endpoint
+- local MongoDB Docker Compose definition
+- GitHub Actions CI for format, typecheck, tests, and production build
+- one-command local verification through `pnpm verify`
+- expanded `.env.example` with current and reserved future settings
+
+Phase 0 deliberately does **not** implement Better Auth, Inngest, R2, Sentry, the homepage, or production database collections. Those belong to later feature phases.
+
+## 4. Verification record
+
+Verified on **2026-11-10**:
+
+- `pnpm install`: passed; lockfile updated and supply-chain policy check passed
+- `pnpm format:check`: passed
+- `pnpm typecheck`: all seven workspace packages passed
+- `pnpm test`: 5 tests passed across config and shared contracts
+- `pnpm build`: Next.js production build passed
+- `/api/health/live`: returned `200` with a request ID
+- `/api/health/ready`: correctly returned `503` and a safe database configuration message because MongoDB is not configured on this machine
+
+Environment note: Docker is not installed on the current machine, so the provided local MongoDB container and a successful `ready` response were not runtime-tested. Do not install Docker or connect to Atlas without product-owner approval and appropriate credentials.
+
+Atlas connectivity check on **2026-11-10**:
+
+- `.env.local` contains a structurally valid `mongodb+srv` Atlas URI and `MONGODB_DB_NAME=motionly`.
+- The local/ISP resolver did not work reliably with Node's SRV lookup. Motionly now supports `MONGODB_DNS_SERVERS`, matching the proven Make My Marriage connection approach.
+- `.env.local` uses Cloudflare public DNS for Atlas SRV resolution; credentials and hostnames remain private.
+- `pnpm --filter @motionly/db check` passed: the driver connected to Atlas, selected the `motionly` database, and received a successful ping.
+
+## 5. Existing validated video POCs
+
+The repository already proves the deterministic rendering approach with three narrated vertical videos:
+
+- **Solar eclipse:** five reusable animated scenes and synchronized captions
+- **Compound interest:** reusable number flow, formula, chart, and comparison visuals
+- **Binary search:** reusable array, midpoint, range-elimination, success, and complexity visuals
+
+The safety boundary is non-negotiable: model output is data, never executable code. Storyboards must pass the Zod contract and may reference only registered templates/actions.
+
+Generated media is local-only under `out/` and `storage/` and must remain uncommitted.
+
+## 6. Approved architecture
+
+- Web/control plane: Next.js on Vercel
+- Language/workspace: TypeScript + pnpm
+- Authentication: Better Auth with Google OAuth and MongoDB adapter (Phase 2)
+- Metadata: MongoDB Atlas through the official driver and repository interfaces
+- Durable workflows: Inngest (Phase 5)
+- Media storage: private Cloudflare R2 with signed access (Phase 5)
+- Rendering: Remotion worker; Remotion Lambda is a later measured scaling option
+- AI planning: Gemini with configurable model identifier
+- Voice: ElevenLabs; configured local voice is **Motionly Indian Educator**
+- Monitoring: structured logs now; Sentry integration later
+
+Canonical documents:
+
+- `docs/Motionly_AI_PRD_v1.2_Approved.md`
+- `docs/SYSTEM_DESIGN.md`
+- `docs/SYSTEM_ARCHITECTURE.md`
+- `docs/API_DESIGN.md`
+- `docs/DATABASE_DESIGN.md`
+- `docs/INSTAGRAM_INTEGRATION_DESIGN.md`
+- `docs/BRAND_DIRECTIONS.md`
+
+## 7. Repository map
+
+```text
+apps/web                 Next.js web/control-plane application
+packages/ai              Gemini and ElevenLabs adapters
+packages/config          Typed server environment configuration
+packages/db              MongoDB connection and migrations
+packages/observability   Structured logging and request context
+packages/shared          Provider-independent contracts and fixtures
+packages/video           Deterministic Remotion compositions
+infrastructure           Local/deployment infrastructure definitions
+docs                     Product, architecture, API, and database documents
+storage                  Ignored local generated assets
+out                      Ignored rendered videos
+```
+
+## 8. Local commands
+
+```bash
+pnpm install
+pnpm verify
+pnpm dev
+```
+
+Optional local MongoDB, after Docker is installed:
+
+```bash
+docker compose -f infrastructure/docker-compose.yml up -d
+pnpm --filter @motionly/db migrate
+```
+
+Copy `.env.example` to `.env.local` and supply local values. Never print, commit, paste into chat, or include credentials in logs.
+
+## 9. Open decisions and known gaps
+
+- MongoDB local/Atlas environment is not yet configured for the product application.
+- Remotion licensing must be confirmed before commercial production launch.
+- The production Gemini model remains environment-configurable and must be confirmed against account availability and quotas.
+- Better Auth, repository implementations, Inngest workflows, R2 storage, and Sentry are architectural decisions but not yet installed or wired.
+- Instagram publishing requires an eligible Creator or Business account and Meta app review; it is design-only today.
+- Stitch screens 01–18 are approved, but none of the approved SaaS pages have been translated into production UI yet.
+
+## 10. Exact next action
+
+Start **Phase 1** as a bounded milestone:
+
+1. Extract Porcelain Cobalt tokens from the approved Stitch design.
+2. Build reusable typography, button, form, card, navigation, and motion primitives.
+3. Implement only the responsive public homepage.
+4. Add accessibility and reduced-motion behavior.
+5. Test desktop/mobile layouts, run `pnpm verify`, obtain product-owner approval, and update this file.
+
+Do not begin authentication or the dashboard during Phase 1.
+
+## 11. Update protocol for future developers and agents
+
+After every implementation milestone, update this file in the same change:
+
+1. Change the current and next phase at the top.
+2. Update the status table.
+3. Record implemented behavior, not intentions.
+4. Record exact verification commands and results.
+5. Record blockers, deferred work, and important decisions.
+6. State one concrete next action.
+7. Never mark a designed feature as implemented.
