@@ -149,8 +149,8 @@ Logical entities:
 
 - `users`: identity and profile fields.
 - `sessions`: active sessions, expiry, and session token metadata.
-- `accounts`: Google OAuth account linkage and provider tokens according to Better Auth's encrypted/storage policy.
-- `verifications`: short-lived verification/recovery records if enabled.
+- `accounts`: password credential linkage managed by Better Auth; no social login provider is enabled in V1.
+- `verifications`: short-lived email-verification and password-recovery records.
 
 Rules:
 

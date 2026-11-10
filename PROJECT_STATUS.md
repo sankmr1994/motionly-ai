@@ -3,8 +3,8 @@
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
 Last updated: **2026-11-10**  
-Current implementation phase: **Phase 1 — Homepage implemented; awaiting product-owner approval**
-Next planned phase: **Phase 2 — Authentication and onboarding, after homepage approval**
+Current implementation phase: **Phase 2 — Authentication and onboarding in progress**
+Next planned phase: **Phase 3 — Dashboard and project management, after Phase 2 approval**
 
 ## 1. Product summary
 
@@ -19,8 +19,8 @@ V1 is creator-first and Instagram-first. Billing, subscriptions, payments, and i
 | Product and architecture | PRD, system, API, database, Instagram integration, brand direction               | Complete                                                   |
 | Video proof of concept   | Solar eclipse, compound interest, binary search                                  | Complete and verified                                      |
 | Phase 0                  | Monorepo foundation, configuration, database adapter, health checks, logging, CI | Complete                                                   |
-| Phase 1                  | Porcelain Cobalt design system and public homepage                               | Implemented and browser-verified; awaiting approval        |
-| Phase 2                  | Authentication and onboarding                                                    | Not started                                                |
+| Phase 1                  | Porcelain Cobalt design system and public homepage                               | Approved, implemented, and browser-verified                |
+| Phase 2                  | Email/password authentication, verification, recovery, and onboarding            | Implementation in progress; credentials pending            |
 | Phase 3                  | Dashboard and project management                                                 | Not started                                                |
 | Phase 4                  | Idea-to-storyboard workflow                                                      | POC components exist; product workflow not implemented     |
 | Phase 5                  | Production video-generation pipeline                                             | POC complete; hosted asynchronous pipeline not implemented |
@@ -78,6 +78,18 @@ Phase 1 homepage verification on **2026-11-10**:
 - In-page demo navigation successfully scrolls to the product preview.
 - `pnpm verify` passed: formatting, all seven workspace type checks, 5 tests, and the optimized Next.js production build.
 
+Phase 2 authentication work started on **2026-11-10**:
+
+- Added Better Auth email/password registration with mandatory email verification and MongoDB persistence.
+- Added Resend-backed verification and password-reset delivery; no email provider credentials are committed.
+- Added sign-up, sign-in, verification notice, forgot-password, reset-password, onboarding, sign-out, and protected dashboard experiences.
+- Onboarding captures name, content category, preferred language, publishing goal, and an automatically detected IANA timezone.
+- Updated homepage calls to action to begin registration and added a responsive Porcelain Cobalt authentication experience.
+- Reused the approved Resend configuration from MakeMyMarriage, normalized its verified-domain sender address, and generated a separate high-entropy Motionly Better Auth secret in ignored `.env.local`.
+- Production build, signup-page browser QA, and the local Better Auth session endpoint passed. A live verification-email send and full account-flow test remain pending.
+- Refined the authentication experience against Stitch screen `01 Sign in / Welcome`: centered welcome card, contained form panel, three-step explainer, trust copy, Porcelain Cobalt spacing, and responsive mobile composition.
+- Fixed the homepage Sign in link hover state and added an accessible Show/Hide password control. Desktop/mobile browser QA passed with no horizontal overflow; password visibility interaction passed.
+
 ## 5. Existing validated video POCs
 
 The repository already proves the deterministic rendering approach with three narrated vertical videos:
@@ -94,7 +106,7 @@ Generated media is local-only under `out/` and `storage/` and must remain uncomm
 
 - Web/control plane: Next.js on Vercel
 - Language/workspace: TypeScript + pnpm
-- Authentication: Better Auth with Google OAuth and MongoDB adapter (Phase 2)
+- Authentication: Better Auth email/password with verification, Resend delivery, and MongoDB adapter (Phase 2)
 - Metadata: MongoDB Atlas through the official driver and repository interfaces
 - Durable workflows: Inngest (Phase 5)
 - Media storage: private Cloudflare R2 with signed access (Phase 5)
@@ -157,7 +169,7 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 
 ## 10. Exact next action
 
-Review and approve the Phase 1 homepage in the local browser. Apply any requested visual refinements, rerun `pnpm verify`, and record approval here. Only after approval, begin **Phase 2: authentication and onboarding**. Do not begin the dashboard or video-creation workflow during Phase 2.
+Finish Phase 2 runtime verification after the product owner adds the Better Auth and Resend environment values. Test registration, verification, sign-in, recovery, onboarding, protected dashboard access, and sign-out before requesting approval. Do not begin the full project dashboard or video-creation workflow during Phase 2.
 
 ## 11. Update protocol for future developers and agents
 

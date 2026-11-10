@@ -89,6 +89,7 @@ These are the implementation baseline verified against the npm registry on 2026-
 | --------------------- | ---------------------------- | ----------------------------- | ------------------------------------------------ |
 | Authentication        | Better Auth                  | 1.7.18                        | Self-hosted TypeScript auth with Next.js support |
 | Auth database adapter | `@better-auth/mongo-adapter` | 1.7.18                        | Reuse MongoDB Atlas and transaction support      |
+| Transactional email   | Resend SDK                   | 6.5.2                         | Verification and password recovery               |
 | Database driver       | `mongodb`                    | 7.8.0                         | Official driver; avoid ODM coupling in V1        |
 | Durable jobs          | `inngest`                    | 4.26.2                        | Step retries, traces, and failure handling       |
 | Object storage client | `@aws-sdk/client-s3`         | 3.1164.0                      | Cloudflare R2 uses an S3-compatible API          |

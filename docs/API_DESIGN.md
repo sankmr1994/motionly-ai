@@ -95,9 +95,10 @@ Better Auth owns `/api/auth/*`; those endpoints are not part of `/api/v1`.
 
 Initial V1 authentication:
 
-- Google OAuth.
+- Public email/password registration with mandatory email verification.
+- Resend delivery for verification and password-reset links.
 - Secure, HTTP-only, same-site session cookie.
-- Optional email/password only after account recovery and email delivery are implemented.
+- Single-use password-reset tokens and session revocation after a successful reset.
 
 ### 5.2 Authorization
 

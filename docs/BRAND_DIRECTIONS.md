@@ -14,6 +14,10 @@ Motionly turns difficult ideas into clear, narrated motion. The visual identity 
 
 ## 2. Shared design principles
 
+### Implementation fidelity rule
+
+The approved Stitch screens are production specifications, not loose inspiration. New UI work must begin by reviewing the corresponding Stitch screen and must preserve its information hierarchy, Porcelain Cobalt tokens, typography roles, 8px spacing rhythm, component sizes, interaction states, and responsive intent. Any intentional deviation requires product-owner approval and must be recorded in `PROJECT_STATUS.md`.
+
 All three directions follow the same foundation:
 
 1. **Show the craft:** Visualize storyboards, diagrams, timelines, narration, and motion—not abstract AI symbolism.

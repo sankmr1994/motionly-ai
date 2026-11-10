@@ -146,13 +146,10 @@ export default function Home() {
         </nav>
 
         <div className="header-actions">
-          <span
-            className="sign-in-placeholder"
-            title="Authentication arrives in Phase 2"
-          >
+          <a className="sign-in-placeholder" href="/sign-in">
             Sign in
-          </span>
-          <a className="button button-small button-primary" href="#start">
+          </a>
+          <a className="button button-small button-primary" href="/sign-up">
             Create a video
             <ArrowIcon />
           </a>
@@ -176,7 +173,7 @@ export default function Home() {
                 voiced, captioned, and rendered in one creative workflow.
               </p>
               <div className="hero-actions">
-                <a className="button button-primary" href="#start">
+                <a className="button button-primary" href="/sign-up">
                   Create your first video
                   <ArrowIcon />
                 </a>
@@ -471,11 +468,13 @@ export default function Home() {
             Bring one concept. Motionly will help shape the story, voice it
             clearly, and set it in motion.
           </p>
-          <a className="button button-light" href="#top">
+          <a className="button button-light" href="/sign-up">
             Create your first video
             <ArrowIcon />
           </a>
-          <small>Creation workspace arrives in the next product phase.</small>
+          <small>
+            Start free. Verify your email, then shape your first idea.
+          </small>
         </section>
       </main>
 

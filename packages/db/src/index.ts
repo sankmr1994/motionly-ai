@@ -1,5 +1,5 @@
 import { getDatabaseConfig } from "@motionly/config";
-import dns from "node:dns";
+import dns, { promises as dnsPromises } from "node:dns";
 import { isIP } from "node:net";
 import { Db, MongoClient } from "mongodb";
 
@@ -21,20 +21,32 @@ function configureDnsServers(configuredServers?: string) {
   }
 
   dns.setServers(servers);
+  dnsPromises.setServers(servers);
 }
 
-export async function getDatabase(): Promise<Db> {
-  if (database) return database;
-
+function getDatabaseResources(): { client: MongoClient; database: Db } {
   const config = getDatabaseConfig();
   configureDnsServers(config.dnsServers);
   client ??= new MongoClient(config.uri, {
     appName: "motionly-ai",
     serverSelectionTimeoutMS: 3_000,
   });
-  await client.connect();
-  database = client.db(config.databaseName);
-  return database;
+  database ??= client.db(config.databaseName);
+  return { client, database };
+}
+
+export function getDatabaseClient(): MongoClient {
+  return getDatabaseResources().client;
+}
+
+export function getDatabaseHandle(): Db {
+  return getDatabaseResources().database;
+}
+
+export async function getDatabase(): Promise<Db> {
+  const resources = getDatabaseResources();
+  await resources.client.connect();
+  return resources.database;
 }
 
 export async function checkDatabaseConnection(): Promise<

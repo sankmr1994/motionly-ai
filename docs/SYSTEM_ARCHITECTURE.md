@@ -435,8 +435,8 @@ Better Auth runs in the Next.js control plane with the official MongoDB adapter.
 
 Initial providers:
 
-- Google OAuth.
-- Optional email/password after email-delivery and account-recovery flows are ready.
+- Better Auth email/password with mandatory email verification.
+- Resend transactional email for verification and password recovery.
 
 Authorization model:
 

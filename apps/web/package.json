@@ -9,15 +9,18 @@
     "typecheck": "tsc --project tsconfig.json"
   },
   "dependencies": {
+    "@better-auth/mongo-adapter": "1.7.18",
     "@motionly/config": "workspace:*",
     "@motionly/db": "workspace:*",
     "@motionly/observability": "workspace:*",
     "@motionly/shared": "workspace:*",
     "@motionly/video": "workspace:*",
     "@remotion/player": "4.0.541",
+    "better-auth": "1.7.18",
     "next": "16.4.5",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "resend": "6.5.2"
   },
   "devDependencies": {
     "@types/node": "26.6.6",

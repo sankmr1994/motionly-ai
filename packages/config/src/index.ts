@@ -21,6 +21,9 @@ export const serverEnvironmentSchema = z.object({
     .trim()
     .min(1)
     .default("eleven_multilingual_v2"),
+  BETTER_AUTH_SECRET: z.string().trim().min(32).optional(),
+  RESEND_API_KEY: optionalSecret,
+  RESEND_FROM_EMAIL: z.string().trim().email().optional(),
 });
 
 export type ServerEnvironment = z.infer<typeof serverEnvironmentSchema>;
