@@ -8,16 +8,19 @@
   },
   "scripts": {
     "check": "tsx --env-file=../../.env.local src/check.ts",
+    "test": "vitest run",
     "typecheck": "tsc --project tsconfig.json",
-    "migrate": "tsx src/migrations/run.ts"
+    "migrate": "tsx --env-file=../../.env.local src/migrations/run.ts"
   },
   "dependencies": {
     "@motionly/config": "workspace:*",
+    "@motionly/shared": "workspace:*",
     "mongodb": "7.8.0"
   },
   "devDependencies": {
     "@types/node": "26.6.6",
     "tsx": "4.23.15",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vitest": "5.1.0"
   }
 }

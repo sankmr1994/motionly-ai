@@ -2,9 +2,9 @@
 
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
-Last updated: **2026-11-10**  
-Current implementation phase: **Phase 2 — Authentication and onboarding in progress**
-Next planned phase: **Phase 3 — Dashboard and project management, after Phase 2 approval**
+Last updated: **2026-11-11**
+Current implementation phase: **Phase 3 — Dashboard and project foundation implemented**
+Next planned phase: **Phase 4 — Idea-to-storyboard workflow, after Phase 3 approval**
 
 ## 1. Product summary
 
@@ -14,20 +14,20 @@ V1 is creator-first and Instagram-first. Billing, subscriptions, payments, and i
 
 ## 2. Status at a glance
 
-| Phase                    | Scope                                                                            | Status                                                     |
-| ------------------------ | -------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Product and architecture | PRD, system, API, database, Instagram integration, brand direction               | Complete                                                   |
-| Video proof of concept   | Solar eclipse, compound interest, binary search                                  | Complete and verified                                      |
-| Phase 0                  | Monorepo foundation, configuration, database adapter, health checks, logging, CI | Complete                                                   |
-| Phase 1                  | Porcelain Cobalt design system and public homepage                               | Approved, implemented, and browser-verified                |
-| Phase 2                  | Email/password authentication, verification, recovery, and onboarding            | Implementation in progress; credentials pending            |
-| Phase 3                  | Dashboard and project management                                                 | Not started                                                |
-| Phase 4                  | Idea-to-storyboard workflow                                                      | POC components exist; product workflow not implemented     |
-| Phase 5                  | Production video-generation pipeline                                             | POC complete; hosted asynchronous pipeline not implemented |
-| Phase 6                  | Completed-video experience                                                       | Designed; not implemented                                  |
-| Phase 7                  | Manual Instagram publishing and one-time scheduling                              | Designed; not implemented                                  |
-| Phase 8                  | Recurring content generation and publishing                                      | Designed; not implemented                                  |
-| Phase 9                  | Production hardening and launch                                                  | Not started                                                |
+| Phase                    | Scope                                                                            | Status                                                      |
+| ------------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Product and architecture | PRD, system, API, database, Instagram integration, brand direction               | Complete                                                    |
+| Video proof of concept   | Solar eclipse, compound interest, binary search                                  | Complete and verified                                       |
+| Phase 0                  | Monorepo foundation, configuration, database adapter, health checks, logging, CI | Complete                                                    |
+| Phase 1                  | Porcelain Cobalt design system and public homepage                               | Approved, implemented, and browser-verified                 |
+| Phase 2                  | Email/password authentication, verification, recovery, and onboarding            | Core flow implemented; live recovery delivery check remains |
+| Phase 3                  | Dashboard and project management                                                 | Foundation implemented; product-owner visual review pending |
+| Phase 4                  | Idea-to-storyboard workflow                                                      | POC components exist; product workflow not implemented      |
+| Phase 5                  | Production video-generation pipeline                                             | POC complete; hosted asynchronous pipeline not implemented  |
+| Phase 6                  | Completed-video experience                                                       | Designed; not implemented                                   |
+| Phase 7                  | Manual Instagram publishing and one-time scheduling                              | Designed; not implemented                                   |
+| Phase 8                  | Recurring content generation and publishing                                      | Designed; not implemented                                   |
+| Phase 9                  | Production hardening and launch                                                  | Not started                                                 |
 
 ## 3. Phase 0 completed work
 
@@ -89,6 +89,19 @@ Phase 2 authentication work started on **2026-11-10**:
 - Production build, signup-page browser QA, and the local Better Auth session endpoint passed. A live verification-email send and full account-flow test remain pending.
 - Refined the authentication experience against Stitch screen `01 Sign in / Welcome`: centered welcome card, contained form panel, three-step explainer, trust copy, Porcelain Cobalt spacing, and responsive mobile composition.
 - Fixed the homepage Sign in link hover state and added an accessible Show/Hide password control. Desktop/mobile browser QA passed with no horizontal overflow; password visibility interaction passed.
+
+Phase 3 dashboard and project foundation implemented on **2026-11-11**:
+
+- Replaced the temporary dark dashboard with the approved light Porcelain Cobalt studio shell used by Stitch screen 03, including desktop sidebar, mobile navigation, user profile controls, and responsive workspace header.
+- Added a guided dashboard empty state, functional Create Video entry points, success feedback, and a persisted Recent Projects grid.
+- Added the Stitch-aligned Create New Video screen with Idea and Full Script modes, prompt examples, 30/45/60-second duration choices, Instagram Reel defaults, Aditi voice summary, and caption defaults.
+- Added strict shared Zod contracts for project creation, input modes, project states, and allowlisted video defaults.
+- Added owner-scoped MongoDB project repositories. Draft creation atomically writes a mutable `projects` record and immutable revision 1 in `projectVersions` inside a MongoDB transaction.
+- Added authenticated `GET` and `POST /api/v1/projects` route handlers with problem-details errors, validation, bounded list limits, and owner isolation.
+- Added forward-only project indexes and applied migration `001-project-foundation-indexes` successfully to the configured Atlas database.
+- Added project-contract and owner-filter tests; an empty owner is rejected before a database query can run.
+- Type checking, 10 automated tests, the Next.js production build, migration, liveness endpoint, protected dashboard redirect, and unauthenticated project API response passed.
+- Windows browser automation could not complete the final authenticated visual pass because its safety layer could not verify the active localhost URL. The production preview remains available for product-owner review; this is a QA constraint, not an application build failure.
 
 ## 5. Existing validated video POCs
 
@@ -163,13 +176,13 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 - MongoDB Atlas is configured and connectivity-tested locally; production deployment configuration remains deferred.
 - Remotion licensing must be confirmed before commercial production launch.
 - The production Gemini model remains environment-configurable and must be confirmed against account availability and quotas.
-- Better Auth, repository implementations, Inngest workflows, R2 storage, and Sentry are architectural decisions but not yet installed or wired.
+- Better Auth and the initial project repositories are wired. Inngest workflows, R2 storage, and Sentry remain deferred to their planned phases.
 - Instagram publishing requires an eligible Creator or Business account and Meta app review; it is design-only today.
 - Stitch screens 01–18 are approved. The public homepage is implemented; authenticated product screens remain design-only.
 
 ## 10. Exact next action
 
-Finish Phase 2 runtime verification after the product owner adds the Better Auth and Resend environment values. Test registration, verification, sign-in, recovery, onboarding, protected dashboard access, and sign-out before requesting approval. Do not begin the full project dashboard or video-creation workflow during Phase 2.
+Product owner reviews the authenticated dashboard, responsive navigation, Create New Video screen, and saved-draft project card. Address any design-fidelity feedback before beginning Phase 4. After approval, implement Gemini-backed topic/script planning as a durable, validated idea-to-storyboard workflow; do not add narration or rendering in that slice.
 
 ## 11. Update protocol for future developers and agents
 

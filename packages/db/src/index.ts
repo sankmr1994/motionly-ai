@@ -69,3 +69,5 @@ export async function closeDatabaseConnection(): Promise<void> {
   client = undefined;
   database = undefined;
 }
+
+export * from "./projects";
