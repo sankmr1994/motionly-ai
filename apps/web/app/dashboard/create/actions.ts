@@ -1,6 +1,6 @@
 "use server";
 
-import { createProject } from "@motionly/db";
+import { createProject, updateProjectDraft } from "@motionly/db";
 import {
   createProjectRequestSchema,
   type CreateProjectRequest,
@@ -34,6 +34,7 @@ export async function saveProjectDraft(
   if (!session?.user?.emailVerified) redirect("/sign-in");
 
   const inputMode = String(formData.get("inputMode") ?? "TOPIC");
+  const projectId = String(formData.get("projectId") ?? "").trim();
   const content = String(formData.get("content") ?? "").trim();
   const duration = Number(formData.get("duration") ?? 45);
   const video = {
@@ -66,12 +67,25 @@ export async function saveProjectDraft(
   }
 
   try {
-    await createProject(session.user.id, result.data as CreateProjectRequest);
+    if (projectId) {
+      const project = await updateProjectDraft(
+        session.user.id,
+        projectId,
+        result.data as CreateProjectRequest,
+      );
+      if (!project) {
+        return {
+          message: "This draft is no longer available to edit.",
+        };
+      }
+    } else {
+      await createProject(session.user.id, result.data as CreateProjectRequest);
+    }
   } catch {
     return {
       message:
         "We could not save this draft right now. Your text is still here—please try again.",
     };
   }
-  redirect("/dashboard?created=1");
+  redirect(projectId ? "/dashboard?updated=1" : "/dashboard?created=1");
 }

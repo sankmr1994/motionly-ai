@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createProjectRequestSchema } from "./project";
+import {
+  createProjectRequestSchema,
+  updateProjectRequestSchema,
+} from "./project";
 
 const video = {
   width: 720,
@@ -41,5 +44,15 @@ describe("project contract", () => {
         video,
       }).success,
     ).toBe(false);
+  });
+
+  it("validates project rename and archive updates", () => {
+    expect(
+      updateProjectRequestSchema.safeParse({ title: "New title" }).success,
+    ).toBe(true);
+    expect(
+      updateProjectRequestSchema.safeParse({ archived: true }).success,
+    ).toBe(true);
+    expect(updateProjectRequestSchema.safeParse({}).success).toBe(false);
   });
 });

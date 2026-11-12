@@ -1,5 +1,6 @@
 import { listProjects } from "@motionly/db";
 import Link from "next/link";
+import { ProjectActions } from "../../components/project-actions";
 import { StudioIcon } from "../../components/studio-icon";
 import { StudioShell } from "../../components/studio-shell";
 import { requireStudioSession } from "../../lib/studio-session";
@@ -7,20 +8,28 @@ import { requireStudioSession } from "../../lib/studio-session";
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; updated?: string; view?: string }>;
 }) {
   const { session } = await requireStudioSession();
-  const projects = await listProjects(session.user.id);
-  const { created } = await searchParams;
+  const { created, updated, view } = await searchParams;
+  const archived = view === "archived";
+  const projects = await listProjects(session.user.id, 50, { archived });
   const firstName = session.user.name.split(" ")[0] || "Creator";
   return (
-    <StudioShell user={{ name: session.user.name, email: session.user.email }}>
-      {created === "1" ? (
+    <StudioShell
+      active="videos"
+      user={{ name: session.user.name, email: session.user.email }}
+    >
+      {created === "1" || updated === "1" ? (
         <div className="studio-success" role="status">
           <span>✓</span>
           <div>
-            <strong>Draft saved</strong>
-            <p>Your idea is private and ready for the planning step.</p>
+            <strong>{updated === "1" ? "Draft updated" : "Draft saved"}</strong>
+            <p>
+              {updated === "1"
+                ? "Your changes are saved and the earlier version remains in project history."
+                : "Your idea is private and ready for the planning step."}
+            </p>
           </div>
         </div>
       ) : null}
@@ -37,57 +46,61 @@ export default async function DashboardPage({
         </Link>
       </section>
 
-      <section className="dashboard-idea-card">
-        <div className="idea-card-copy">
-          <span>START WITH ONE IDEA</span>
-          <h2>What should your audience understand today?</h2>
-          <p>
-            You do not need editing experience. Describe the topic, choose the
-            length, and save your first private draft.
-          </p>
-          <Link href="/dashboard/create" className="idea-prompt-link">
-            <StudioIcon name="bulb" />
-            <span>Describe your video idea</span>
-            <StudioIcon name="arrow" />
-          </Link>
-          <div className="idea-suggestions">
-            <span>Try an idea:</span>
-            <Link href="/dashboard/create">How habits form</Link>
-            <Link href="/dashboard/create">Explain compound interest</Link>
-            <Link href="/dashboard/create">How binary search works</Link>
+      {!archived && projects.length === 0 ? (
+        <section className="dashboard-idea-card">
+          <div className="idea-card-copy">
+            <span>START WITH ONE IDEA</span>
+            <h2>What should your audience understand today?</h2>
+            <p>
+              You do not need editing experience. Describe the topic, choose the
+              length, and save your first private draft.
+            </p>
+            <Link href="/dashboard/create" className="idea-prompt-link">
+              <StudioIcon name="bulb" />
+              <span>Describe your video idea</span>
+              <StudioIcon name="arrow" />
+            </Link>
+            <div className="idea-suggestions">
+              <span>Try an idea:</span>
+              <Link href="/dashboard/create">How habits form</Link>
+              <Link href="/dashboard/create">Explain compound interest</Link>
+              <Link href="/dashboard/create">How binary search works</Link>
+            </div>
           </div>
-        </div>
-        <div className="idea-storyboard" aria-hidden="true">
-          <span>IDEA</span>
-          <div className="storyboard-line">
-            <i />
-            <i />
-            <i />
+          <div className="idea-storyboard" aria-hidden="true">
+            <span>IDEA</span>
+            <div className="storyboard-line">
+              <i />
+              <i />
+              <i />
+            </div>
+            <div className="storyboard-frame large">
+              <b>01</b>
+              <em />
+            </div>
+            <div className="storyboard-frame">
+              <b>02</b>
+              <em />
+            </div>
+            <div className="storyboard-frame">
+              <b>03</b>
+              <em />
+            </div>
+            <span>VIDEO PLAN</span>
           </div>
-          <div className="storyboard-frame large">
-            <b>01</b>
-            <em />
-          </div>
-          <div className="storyboard-frame">
-            <b>02</b>
-            <em />
-          </div>
-          <div className="storyboard-frame">
-            <b>03</b>
-            <em />
-          </div>
-          <span>VIDEO PLAN</span>
-        </div>
-      </section>
+        </section>
+      ) : null}
 
       <section className="dashboard-projects">
         <header>
           <div>
-            <span className="studio-eyebrow">RECENT PROJECTS</span>
+            <span className="studio-eyebrow">MY VIDEOS</span>
             <h2>
-              {projects.length
-                ? "Continue creating"
-                : "Your work will live here."}
+              {archived
+                ? "Archived projects"
+                : projects.length
+                  ? "Continue creating"
+                  : "Your work will live here."}
             </h2>
           </div>
           {projects.length ? (
@@ -96,6 +109,18 @@ export default async function DashboardPage({
             </span>
           ) : null}
         </header>
+
+        <nav className="project-view-tabs" aria-label="Project views">
+          <Link className={!archived ? "active" : ""} href="/dashboard">
+            Active
+          </Link>
+          <Link
+            className={archived ? "active" : ""}
+            href="/dashboard?view=archived"
+          >
+            Archived
+          </Link>
+        </nav>
 
         {projects.length ? (
           <div className="project-grid">
@@ -111,9 +136,18 @@ export default async function DashboardPage({
                   <small>9:16</small>
                 </div>
                 <div className="project-card-copy">
-                  <div>
-                    <span className="project-status">DRAFT</span>
-                    <span>{project.video.targetDurationSeconds}s</span>
+                  <div className="project-card-meta">
+                    <div>
+                      <span className="project-status">
+                        {project.archived ? "ARCHIVED" : project.status}
+                      </span>
+                      <span>{project.video.targetDurationSeconds}s</span>
+                    </div>
+                    <ProjectActions
+                      archived={project.archived}
+                      projectId={project.id}
+                      title={project.title}
+                    />
                   </div>
                   <h3>{project.title}</h3>
                   <p>
@@ -129,7 +163,9 @@ export default async function DashboardPage({
                         dateStyle: "medium",
                       }).format(new Date(project.updatedAt))}
                     </time>
-                    <span>Planning is next</span>
+                    <span>
+                      {project.archived ? "Stored safely" : "Planning is next"}
+                    </span>
                   </footer>
                 </div>
               </article>
@@ -139,18 +175,36 @@ export default async function DashboardPage({
           <div className="empty-projects-new">
             <span>01</span>
             <div>
-              <strong>No projects yet</strong>
+              <strong>
+                {archived ? "No archived projects" : "No projects yet"}
+              </strong>
               <p>
-                Create your first video draft to begin building your library.
+                {archived
+                  ? "Projects you archive will stay here until you restore or delete them."
+                  : "Create your first video draft to begin building your library."}
               </p>
             </div>
-            <Link href="/dashboard/create">
-              Create first video
+            <Link href={archived ? "/dashboard" : "/dashboard/create"}>
+              {archived ? "Back to active" : "Create first video"}
               <StudioIcon name="arrow" />
             </Link>
           </div>
         )}
       </section>
+
+      {!archived && projects.length > 0 ? (
+        <section className="dashboard-next-video">
+          <div>
+            <span className="studio-eyebrow">CREATE YOUR NEXT VIDEO</span>
+            <h2>Have another idea worth sharing?</h2>
+            <p>Start a fresh draft whenever inspiration arrives.</p>
+          </div>
+          <Link href="/dashboard/create">
+            <StudioIcon name="add" />
+            Create another video
+          </Link>
+        </section>
+      ) : null}
     </StudioShell>
   );
 }

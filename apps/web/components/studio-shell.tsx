@@ -3,9 +3,11 @@ import { SignOutButton } from "./sign-out-button";
 import { StudioIcon } from "./studio-icon";
 
 export function StudioShell({
+  active,
   children,
   user,
 }: {
+  active: "videos" | "create";
   children: React.ReactNode;
   user: { name: string; email: string };
 }) {
@@ -23,11 +25,17 @@ export function StudioShell({
         </Link>
 
         <nav className="studio-navigation" aria-label="Studio navigation">
-          <Link className="active" href="/dashboard">
+          <Link
+            className={active === "videos" ? "active" : ""}
+            href="/dashboard"
+          >
             <StudioIcon name="video" />
             My Videos
           </Link>
-          <Link href="/dashboard/create">
+          <Link
+            className={active === "create" ? "active" : ""}
+            href="/dashboard/create"
+          >
             <StudioIcon name="add" />
             Create video
             <small>NEW</small>
@@ -85,11 +93,14 @@ export function StudioShell({
       </div>
 
       <nav className="studio-mobile-nav" aria-label="Mobile navigation">
-        <Link className="active" href="/dashboard">
+        <Link className={active === "videos" ? "active" : ""} href="/dashboard">
           <StudioIcon name="home" />
           Videos
         </Link>
-        <Link className="create" href="/dashboard/create">
+        <Link
+          className={`create${active === "create" ? " active" : ""}`}
+          href="/dashboard/create"
+        >
           <StudioIcon name="add" />
           Create
         </Link>

@@ -100,8 +100,12 @@ Phase 3 dashboard and project foundation implemented on **2026-11-11**:
 - Added authenticated `GET` and `POST /api/v1/projects` route handlers with problem-details errors, validation, bounded list limits, and owner isolation.
 - Added forward-only project indexes and applied migration `001-project-foundation-indexes` successfully to the configured Atlas database.
 - Added project-contract and owner-filter tests; an empty owner is rejected before a database query can run.
-- Type checking, 10 automated tests, the Next.js production build, migration, liveness endpoint, protected dashboard redirect, and unauthenticated project API response passed.
-- Windows browser automation could not complete the final authenticated visual pass because its safety layer could not verify the active localhost URL. The production preview remains available for product-owner review; this is a QA constraint, not an application build failure.
+- Refined My Videos into a compact responsive library that scales from three columns on wide screens to one column on mobile, with separate Active and Archived views and a bounded 50-project page.
+- Rebalanced the returning-user dashboard so the compact welcome header flows directly into My Videos and saved drafts are visible in the initial viewport. The large blue idea explainer now appears only for first-time users with no active projects; returning users receive a compact create-next-video prompt after their library.
+- Added owner-scoped draft management: reopen and update the idea/script while preserving immutable revision history, rename, reversible archive/restore, and permanent draft deletion behind an explicit confirmation dialog. Matching authenticated metadata `PATCH` and draft-only `DELETE` APIs share the same validation rules.
+- Fixed the studio navigation state so the cobalt selection follows My Videos or Create New Video on desktop and mobile instead of remaining pinned to My Videos.
+- Type checking, 12 automated tests, the Next.js production build, migration, liveness endpoint, protected dashboard redirect, and unauthenticated project API responses passed.
+- Signed-in desktop and narrow responsive browser QA confirmed that My Videos and the first draft card are visible without scrolling past an oversized onboarding panel.
 
 ## 5. Existing validated video POCs
 

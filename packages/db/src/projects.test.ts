@@ -5,7 +5,7 @@ describe("project ownership filter", () => {
   it("always scopes project lists to the authenticated owner", () => {
     expect(buildOwnedProjectsFilter("user-a")).toEqual({
       ownerId: "user-a",
-      status: { $ne: "DELETING" },
+      status: { $nin: ["ARCHIVED", "DELETING"] },
     });
     expect(buildOwnedProjectsFilter("user-b")).not.toEqual(
       buildOwnedProjectsFilter("user-a"),
@@ -16,5 +16,12 @@ describe("project ownership filter", () => {
     expect(() => buildOwnedProjectsFilter("   ")).toThrow(
       "A project owner is required.",
     );
+  });
+
+  it("separates archived projects without dropping owner scope", () => {
+    expect(buildOwnedProjectsFilter("user-a", true)).toEqual({
+      ownerId: "user-a",
+      status: "ARCHIVED",
+    });
   });
 });

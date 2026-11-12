@@ -26,7 +26,9 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const requestedLimit = Number(url.searchParams.get("limit") ?? 20);
   const limit = Number.isFinite(requestedLimit) ? requestedLimit : 20;
-  const projects = await listProjects(user.id, limit);
+  const projects = await listProjects(user.id, limit, {
+    archived: url.searchParams.get("archived") === "true",
+  });
   return Response.json({ data: projects });
 }
 

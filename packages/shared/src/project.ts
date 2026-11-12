@@ -48,7 +48,21 @@ export const createProjectRequestSchema = z.discriminatedUnion("inputMode", [
     .strict(),
 ]);
 
+export const updateProjectRequestSchema = z
+  .object({
+    title: z.string().trim().min(1).max(120).optional(),
+    archived: z.boolean().optional(),
+  })
+  .strict()
+  .refine(
+    (value) => value.title !== undefined || value.archived !== undefined,
+    {
+      message: "At least one project field is required.",
+    },
+  );
+
 export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
+export type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>;
 export type ProjectInputMode = z.infer<typeof projectInputModeSchema>;
 export type ProjectStatus = z.infer<typeof projectStatusSchema>;
 export type VideoDefaults = z.infer<typeof videoDefaultsSchema>;

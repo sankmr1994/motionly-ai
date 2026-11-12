@@ -1,24 +1,41 @@
 type StudioIconName =
   | "add"
+  | "archive"
   | "arrow"
   | "bulb"
+  | "edit"
   | "examples"
   | "home"
   | "menu"
+  | "more"
   | "projects"
+  | "restore"
   | "script"
   | "settings"
   | "sparkles"
   | "templates"
+  | "trash"
   | "video";
 
 const paths: Record<StudioIconName, React.ReactNode> = {
   add: <path d="M12 5v14M5 12h14" />,
+  archive: (
+    <>
+      <path d="M4 7h16v13H4zM3 4h18v3H3z" />
+      <path d="M9 11h6" />
+    </>
+  ),
   arrow: <path d="m9 18 6-6-6-6" />,
   bulb: (
     <>
       <path d="M9 18h6M10 22h4" />
       <path d="M8.2 14.4A7 7 0 1 1 15.8 14.4c-.9.7-1.4 1.5-1.6 2.6H9.8c-.2-1.1-.7-1.9-1.6-2.6Z" />
+    </>
+  ),
+  edit: (
+    <>
+      <path d="M4 20h4l11-11-4-4L4 16v4Z" />
+      <path d="m13.5 6.5 4 4" />
     </>
   ),
   examples: (
@@ -34,12 +51,20 @@ const paths: Record<StudioIconName, React.ReactNode> = {
     </>
   ),
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  more: (
+    <>
+      <circle cx="5" cy="12" r="1" fill="currentColor" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" />
+      <circle cx="19" cy="12" r="1" fill="currentColor" />
+    </>
+  ),
   projects: (
     <>
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <path d="M3 9h18M8 5V3h8v2" />
     </>
   ),
+  restore: <path d="M4 7v5h5M5.5 16a8 8 0 1 0 .5-9l-2 2" />,
   script: (
     <>
       <path d="M7 3h7l4 4v14H7z" />
@@ -64,6 +89,12 @@ const paths: Record<StudioIconName, React.ReactNode> = {
       <rect x="14" y="3" width="7" height="7" rx="1" />
       <rect x="3" y="14" width="7" height="7" rx="1" />
       <rect x="14" y="14" width="7" height="7" rx="1" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14" />
+      <path d="M10 11v6M14 11v6" />
     </>
   ),
   video: (

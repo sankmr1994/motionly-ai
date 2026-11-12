@@ -464,7 +464,9 @@ DELETE /api/v1/projects/:projectId
 Idempotency-Key: ...
 ```
 
-Response: `202 Accepted` with a deletion-job identifier. The project immediately enters `DELETING`, becomes inaccessible to normal project queries, and is purged asynchronously from MongoDB and R2.
+For a `DRAFT` project without generated assets, V1 performs an owner-scoped transactional deletion of the project and its immutable draft versions and returns `204 No Content`. Archived drafts remain eligible for this operation. The UI requires an explicit confirmation because the deletion is permanent.
+
+Generated projects are not eligible for immediate deletion. Their future asset-aware deletion flow returns `202 Accepted` with a deletion-job identifier, immediately moves the project to `DELETING`, hides it from normal project queries, and purges MongoDB and R2 data asynchronously.
 
 ## 14. Planning and version endpoints
 

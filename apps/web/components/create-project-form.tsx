@@ -9,10 +9,19 @@ import { StudioIcon } from "./studio-icon";
 
 const initialState: DraftActionState = {};
 
-export function CreateProjectForm() {
-  const [mode, setMode] = useState<"TOPIC" | "SCRIPT">("TOPIC");
-  const [duration, setDuration] = useState(45);
-  const [content, setContent] = useState("");
+type EditableDraft = {
+  id: string;
+  inputMode: "TOPIC" | "SCRIPT";
+  content: string;
+  duration: 30 | 45 | 60;
+};
+
+export function CreateProjectForm({ draft }: { draft?: EditableDraft }) {
+  const [mode, setMode] = useState<"TOPIC" | "SCRIPT">(
+    draft?.inputMode ?? "TOPIC",
+  );
+  const [duration, setDuration] = useState<number>(draft?.duration ?? 45);
+  const [content, setContent] = useState(draft?.content ?? "");
   const [state, action, pending] = useActionState(
     saveProjectDraft,
     initialState,
@@ -24,6 +33,7 @@ export function CreateProjectForm() {
     <form className="create-project-form" action={action}>
       <input type="hidden" name="inputMode" value={mode} />
       <input type="hidden" name="duration" value={duration} />
+      {draft ? <input type="hidden" name="projectId" value={draft.id} /> : null}
 
       <section className="create-input-panel">
         <div className="create-mode-tabs" aria-label="Choose input type">
@@ -192,7 +202,7 @@ export function CreateProjectForm() {
         <div>
           <StudioIcon name="projects" />
           <span>
-            <strong>Save as a draft</strong>
+            <strong>{draft ? "Update this draft" : "Save as a draft"}</strong>
             <small>Your idea stays private in your workspace.</small>
           </span>
         </div>
@@ -202,7 +212,13 @@ export function CreateProjectForm() {
           </p>
         ) : null}
         <button className="studio-primary-button" disabled={pending}>
-          {pending ? "Saving your draft…" : "Save draft"}
+          {pending
+            ? draft
+              ? "Updating your draft…"
+              : "Saving your draft…"
+            : draft
+              ? "Update draft"
+              : "Save draft"}
           {!pending ? <StudioIcon name="arrow" /> : null}
         </button>
       </footer>
