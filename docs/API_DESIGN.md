@@ -558,7 +558,8 @@ POST /api/v1/projects/:projectId/versions
     {
       "id": "scene_01",
       "title": "A clearer opening",
-      "narration": "Reviewed narration for this scene."
+      "narration": "Reviewed narration for this scene.",
+      "objects": ["Primary idea", "Supporting detail"]
     }
   ]
 }
@@ -567,7 +568,7 @@ POST /api/v1/projects/:projectId/versions
 Rules:
 
 - `basedOnVersionId` and `expectedContentHash` must match the current `REVIEW_READY` version.
-- V1 editing accepts every current scene exactly once and allows only title and narration changes. Templates, objects, animation actions, timing, ordering, and technical configuration are copied unchanged.
+- V1 editing accepts every current scene exactly once and allows title, narration, and visual-label renaming. Renaming preserves visual-object count and automatically rewrites matching animation-action references. Templates, timing, ordering, and technical configuration remain protected.
 - Narration word count must fit each locked scene duration at the configured safe speaking-rate limit.
 - The server reconstructs and validates the complete storyboard before persistence.
 - A new sequential revision is created; the base revision remains unchanged.

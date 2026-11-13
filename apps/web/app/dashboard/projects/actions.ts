@@ -25,6 +25,15 @@ export async function saveStoryboardEditsAction(
   const sceneIds = formData.getAll("sceneId");
   const titles = formData.getAll("title");
   const narrations = formData.getAll("narration");
+  const objectsJson = formData.getAll("objectsJson");
+  let objects: unknown[];
+  try {
+    objects = objectsJson.map((value) =>
+      typeof value === "string" ? JSON.parse(value) : null,
+    );
+  } catch {
+    return { message: "The visual labels could not be read." };
+  }
   const parsed = editProjectStoryboardRequestSchema.safeParse({
     basedOnVersionId: formData.get("basedOnVersionId"),
     expectedContentHash: formData.get("expectedContentHash"),
@@ -33,6 +42,7 @@ export async function saveStoryboardEditsAction(
       id,
       title: titles[index],
       narration: narrations[index],
+      objects: objects[index],
     })),
   });
   if (!parsed.success) {

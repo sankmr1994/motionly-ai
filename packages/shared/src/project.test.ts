@@ -86,6 +86,7 @@ describe("storyboard edit contract", () => {
         id: "scene_01",
         title: "A clearer opening",
         narration: "This is the revised narration.",
+        objects: ["Main idea", "Supporting detail"],
       },
     ],
   };

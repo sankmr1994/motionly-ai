@@ -16,7 +16,7 @@ const initialState: StoryboardActionState = {};
 
 type EditableScene = Pick<
   StoryboardScene,
-  "id" | "title" | "narration" | "durationEstimateSeconds"
+  "id" | "title" | "narration" | "durationEstimateSeconds" | "objects"
 >;
 
 export function StoryboardEditor({
@@ -49,6 +49,7 @@ export function StoryboardEditor({
   const changeSummary = useMemo(() => {
     let titleChanges = 0;
     let narrationChanges = 0;
+    let visualLabelChanges = 0;
     const changedScenes = new Set<string>();
     drafts.forEach((draft, index) => {
       const original = scenes[index]!;
@@ -60,10 +61,17 @@ export function StoryboardEditor({
         narrationChanges += 1;
         changedScenes.add(draft.id);
       }
+      draft.objects.forEach((object, objectIndex) => {
+        if (object.trim() !== original.objects[objectIndex]) {
+          visualLabelChanges += 1;
+          changedScenes.add(draft.id);
+        }
+      });
     });
     return {
       titleChanges,
       narrationChanges,
+      visualLabelChanges,
       changedScenes: changedScenes.size,
     };
   }, [drafts, scenes]);
@@ -115,6 +123,21 @@ export function StoryboardEditor({
     ) {
       setClientMessage("Every scene needs a title and narration.");
       return;
+    }
+    for (const scene of drafts) {
+      if (scene.objects.some((object) => !object.trim())) {
+        setClientMessage("Every visual label needs a name.");
+        return;
+      }
+      const normalized = scene.objects.map((object) =>
+        object.trim().toLowerCase(),
+      );
+      if (new Set(normalized).size !== normalized.length) {
+        setClientMessage(
+          `${scene.id} has duplicate visual labels. Give each label a unique name.`,
+        );
+        return;
+      }
     }
     setClientMessage(undefined);
     setReviewing(true);
@@ -169,7 +192,7 @@ export function StoryboardEditor({
                     <p>
                       {reviewing
                         ? `Saving creates Revision ${nextRevision}. Revision ${revision} remains unchanged.`
-                        : "Change scene titles and narration. Motion and timing stay protected."}
+                        : "Change titles, narration, and visual labels. Motion and timing stay protected."}
                     </p>
                   </div>
                   <button
@@ -200,6 +223,11 @@ export function StoryboardEditor({
                           <small>{scene.durationEstimateSeconds}s locked</small>
                         </header>
                         <input type="hidden" name="sceneId" value={scene.id} />
+                        <input
+                          type="hidden"
+                          name="objectsJson"
+                          value={JSON.stringify(scene.objects)}
+                        />
                         <label>
                           Scene title
                           <input
@@ -251,6 +279,45 @@ export function StoryboardEditor({
                             {1_000 - scene.narration.length} characters left
                           </span>
                         </div>
+                        <fieldset className="storyboard-edit-visuals">
+                          <legend>Visual labels</legend>
+                          <p>
+                            Rename what appears in this scene. Motion references
+                            update automatically.
+                          </p>
+                          <div>
+                            {scene.objects.map((object, objectIndex) => (
+                              <label key={`${scene.id}-${objectIndex}`}>
+                                Label {objectIndex + 1}
+                                <input
+                                  required
+                                  maxLength={80}
+                                  value={object}
+                                  onChange={(event) =>
+                                    setDrafts((current) =>
+                                      current.map((item, itemIndex) =>
+                                        itemIndex === index
+                                          ? {
+                                              ...item,
+                                              objects: item.objects.map(
+                                                (
+                                                  currentObject,
+                                                  currentIndex,
+                                                ) =>
+                                                  currentIndex === objectIndex
+                                                    ? event.target.value
+                                                    : currentObject,
+                                              ),
+                                            }
+                                          : item,
+                                      ),
+                                    )
+                                  }
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        </fieldset>
                       </section>
                     );
                   })}
@@ -272,6 +339,10 @@ export function StoryboardEditor({
                     <div>
                       <dt>Narrations changed</dt>
                       <dd>{changeSummary.narrationChanges}</dd>
+                    </div>
+                    <div>
+                      <dt>Visual labels changed</dt>
+                      <dd>{changeSummary.visualLabelChanges}</dd>
                     </div>
                     <div>
                       <dt>Timing validation</dt>

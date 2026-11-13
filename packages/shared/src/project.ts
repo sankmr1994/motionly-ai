@@ -77,6 +77,7 @@ export const editedStoryboardSceneSchema = z
     id: z.string().regex(/^scene_[0-9]{2}$/),
     title: z.string().trim().min(1).max(60),
     narration: z.string().trim().min(1).max(1_000),
+    objects: z.array(z.string().trim().min(1).max(80)).min(1).max(20),
   })
   .strict();
 

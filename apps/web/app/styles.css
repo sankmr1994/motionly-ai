@@ -4144,6 +4144,45 @@ footer > div {
   font-weight: 800;
 }
 
+.storyboard-edit-visuals {
+  margin: 18px 0 0;
+  padding: 15px;
+  border: 1px solid #dce3ee;
+  border-radius: 4px;
+  background: #f8faff;
+}
+
+.storyboard-edit-visuals legend {
+  padding: 0 6px;
+  color: #526078;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.storyboard-edit-visuals > p {
+  margin: 0 0 12px;
+  color: #7a8598;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.storyboard-edit-visuals > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.storyboard-edit-visuals label {
+  margin: 0;
+  font-size: 8.5px;
+}
+
+.storyboard-edit-visuals input {
+  min-height: 38px;
+  background: #fff;
+  font-size: 10.5px;
+}
+
 .storyboard-edit-review {
   display: grid;
   gap: 20px;
@@ -4250,6 +4289,10 @@ footer > div {
   .storyboard-edit-word-count {
     display: grid;
     gap: 3px;
+  }
+
+  .storyboard-edit-visuals > div {
+    grid-template-columns: 1fr;
   }
 }
 

@@ -1,4 +1,5 @@
 import type {
+  AnimationAction,
   CreateProjectRequest,
   EditProjectStoryboardRequest,
   ProjectInputMode,
@@ -191,7 +192,29 @@ export function getRevisionSelectionReadiness(
   return "ready" as const;
 }
 
-export function compileStoryboardTextEdits(
+function remapAnimationActionTargets(
+  action: AnimationAction,
+  objectRenames: Map<string, string>,
+): AnimationAction {
+  const rename = (value: string) => objectRenames.get(value) ?? value;
+  switch (action.type) {
+    case "SHOW":
+    case "LABEL":
+      return { ...action, targets: action.targets.map(rename) };
+    case "MOVE":
+      return {
+        ...action,
+        target: rename(action.target),
+        to: rename(action.to),
+      };
+    case "HIGHLIGHT":
+    case "DRAW":
+    case "ZOOM":
+      return { ...action, target: rename(action.target) };
+  }
+}
+
+export function compileStoryboardEdits(
   storyboard: Storyboard,
   edits: EditProjectStoryboardRequest["scenes"],
 ):
@@ -202,8 +225,13 @@ export function compileStoryboardTextEdits(
       changedScenes: number;
       titleChanges: number;
       narrationChanges: number;
+      visualLabelChanges: number;
     }
-  | { ok: false; reason: "scene_mismatch" | "timing"; message: string } {
+  | {
+      ok: false;
+      reason: "scene_mismatch" | "timing" | "visual_mismatch";
+      message: string;
+    } {
   const editsById = new Map(edits.map((scene) => [scene.id, scene]));
   if (
     editsById.size !== storyboard.scenes.length ||
@@ -218,7 +246,45 @@ export function compileStoryboardTextEdits(
 
   let titleChanges = 0;
   let narrationChanges = 0;
+  let visualLabelChanges = 0;
   const narrationChangedIds = new Set<string>();
+  for (const scene of storyboard.scenes) {
+    const edit = editsById.get(scene.id)!;
+    if (edit.objects.length !== scene.objects.length) {
+      return {
+        ok: false,
+        reason: "visual_mismatch",
+        message: `${scene.id} must keep its existing number of visual labels.`,
+      };
+    }
+    const objects = edit.objects.map((object) => object.trim());
+    const objectChanged = objects.some(
+      (object, objectIndex) => object !== scene.objects[objectIndex],
+    );
+    if (objectChanged) {
+      const normalizedObjects = objects.map((object) => object.toLowerCase());
+      if (new Set(normalizedObjects).size !== normalizedObjects.length) {
+        return {
+          ok: false,
+          reason: "visual_mismatch",
+          message: `${scene.id} visual labels must be unique.`,
+        };
+      }
+      const replacementsByOriginal = new Map<string, string>();
+      for (const [objectIndex, object] of scene.objects.entries()) {
+        const replacement = objects[objectIndex]!;
+        const existingReplacement = replacementsByOriginal.get(object);
+        if (existingReplacement && existingReplacement !== replacement) {
+          return {
+            ok: false,
+            reason: "visual_mismatch",
+            message: `${scene.id} contains duplicate labels that cannot be renamed differently.`,
+          };
+        }
+        replacementsByOriginal.set(object, replacement);
+      }
+    }
+  }
   const nextStoryboard = storyboardSchema.parse({
     ...storyboard,
     scenes: storyboard.scenes.map((scene, index) => {
@@ -231,10 +297,28 @@ export function compileStoryboardTextEdits(
         narrationChanges += 1;
         narrationChangedIds.add(scene.id);
       }
+      const objects = edit.objects.map((object) => object.trim());
+      const objectChanged = objects.some(
+        (object, objectIndex) => object !== scene.objects[objectIndex],
+      );
+      const objectRenames = new Map<string, string>();
+      if (objectChanged) {
+        scene.objects.forEach((object, objectIndex) => {
+          const replacement = objects[objectIndex]!;
+          objectRenames.set(object, replacement);
+          if (object !== replacement) visualLabelChanges += 1;
+        });
+      }
       return {
         ...scene,
         ...(scene.title !== undefined || titleChanged ? { title } : {}),
         narration,
+        objects,
+        actions: objectChanged
+          ? scene.actions.map((action) =>
+              remapAnimationActionTargets(action, objectRenames),
+            )
+          : scene.actions,
       };
     }),
   });
@@ -260,13 +344,17 @@ export function compileStoryboardTextEdits(
           return (
             (original.title ?? `Scene ${index + 1}`) !==
               (scene.title ?? `Scene ${index + 1}`) ||
-            original.narration !== scene.narration
+            original.narration !== scene.narration ||
+            original.objects.some(
+              (object, objectIndex) => object !== scene.objects[objectIndex],
+            )
           );
         })
         .map((scene) => scene.id),
     ).size,
     titleChanges,
     narrationChanges,
+    visualLabelChanges,
   };
 }
 
@@ -1190,10 +1278,7 @@ export async function createEditedProjectStoryboardRevision(
         result = { ok: false, reason: "conflict" };
         return;
       }
-      const compiled = compileStoryboardTextEdits(
-        parsedSource.data,
-        input.scenes,
-      );
+      const compiled = compileStoryboardEdits(parsedSource.data, input.scenes);
       if (!compiled.ok) {
         result = {
           ok: false,

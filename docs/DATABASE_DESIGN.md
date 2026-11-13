@@ -304,7 +304,7 @@ db.projectVersions.createIndex({ "approval.approvedAt": 1 }, { sparse: true });
 
 Revision selection runs in a transaction: validate the owner-scoped `REVIEW_READY` project and target version, then compare-and-set `projects.currentVersionId`. `revisionCounter` remains unchanged, so the next regeneration receives the next unused revision number even when its base is an older version.
 
-Storyboard editing also runs in a transaction. The server compares the current version ID and content hash, applies only allowlisted text fields to the immutable source storyboard, validates schema and narration timing, increments `revisionCounter`, inserts the edited version, and advances `currentVersionId`. Stale, invalid, cross-owner, approved, and no-op edits do not create a revision.
+Storyboard editing also runs in a transaction. The server compares the current version ID and content hash, applies only allowlisted text fields and visual-label renames to the immutable source storyboard, synchronizes matching action targets, validates schema and narration timing, increments `revisionCounter`, inserts the edited version, and advances `currentVersionId`. Stale, invalid, cross-owner, approved, and no-op edits do not create a revision.
 
 ## 8. `planningJobs`
 
