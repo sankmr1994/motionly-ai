@@ -259,7 +259,7 @@ Immutable snapshots of user-reviewed content and render configuration.
   templateRegistryVersion: "2026-11-09.1",
   planningProvenance: {
     provider: "GOOGLE_GEMINI",
-    model: "gemini-3.8-flash",
+    model: "gemini-3.5-flash-lite",
     sdkVersion: "2.32.0",
     generatedAt: ISODate("2026-11-09T05:35:00.000Z"),
     usedFallback: false
@@ -271,7 +271,7 @@ Immutable snapshots of user-reviewed content and render configuration.
   },
   contentHash: "sha256:<canonical-content-hash>",
   approval: {
-    status: "APPROVED", // DRAFT | APPROVED
+    status: "APPROVED", // DRAFT | REVIEW_READY | APPROVED
     approvedBy: "better-auth-user-id",
     approvedAt: ISODate("2026-11-09T05:38:00.000Z"),
     approvedContentHash: "sha256:<same-hash>"
@@ -285,10 +285,7 @@ Immutable snapshots of user-reviewed content and render configuration.
 ```js
 db.projectVersions.createIndex({ projectId: 1, revision: 1 }, { unique: true });
 db.projectVersions.createIndex({ ownerId: 1, projectId: 1, revision: -1 });
-db.projectVersions.createIndex(
-  { projectId: 1, contentHash: 1 },
-  { unique: true },
-);
+db.projectVersions.createIndex({ projectId: 1, contentHash: 1 });
 db.projectVersions.createIndex({ "approval.approvedAt": 1 }, { sparse: true });
 ```
 
@@ -297,8 +294,11 @@ db.projectVersions.createIndex({ "approval.approvedAt": 1 }, { sparse: true });
 - Draft versions may be approved once, using a compare-and-set on `approval.status` and `contentHash`.
 - Content fields (`script`, `storyboard`, source, model configuration) are never updated after insert.
 - Editing creates a new revision.
+- Selecting an earlier storyboard changes only `projects.currentVersionId`; it never copies or mutates a `projectVersions` document.
 - Approval metadata may be added atomically but never removed or changed.
 - Rendering always references a specific version ID, never "latest".
+
+Revision selection runs in a transaction: validate the owner-scoped `REVIEW_READY` project and target version, then compare-and-set `projects.currentVersionId`. `revisionCounter` remains unchanged, so the next regeneration receives the next unused revision number even when its base is an older version.
 
 ## 8. `planningJobs`
 
@@ -322,7 +322,7 @@ Durable state for topic/script planning before approval.
   outputVersionId: undefined,
   provider: {
     name: "GOOGLE_GEMINI",
-    model: "gemini-3.8-flash",
+    model: "gemini-3.5-flash-lite",
     requestId: "..."
   },
   error: undefined,

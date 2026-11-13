@@ -13,7 +13,8 @@ export const serverEnvironmentSchema = z.object({
   MONGODB_DB_NAME: z.string().trim().min(1).optional(),
   MONGODB_DNS_SERVERS: z.string().trim().min(1).optional(),
   GEMINI_API_KEY: optionalSecret,
-  GEMINI_MODEL: z.string().trim().min(1).default("gemini-3.8-flash"),
+  GEMINI_MODEL: z.string().trim().min(1).default("gemini-3.5-flash-lite"),
+  GEMINI_FALLBACK_MODEL: z.string().trim().min(1).default("gemini-3.5-flash"),
   ELEVENLABS_API_KEY: optionalSecret,
   ELEVENLABS_VOICE_ID: optionalSecret,
   ELEVENLABS_MODEL_ID: z

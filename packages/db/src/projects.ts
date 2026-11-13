@@ -2,8 +2,10 @@ import type {
   CreateProjectRequest,
   ProjectInputMode,
   ProjectStatus,
+  Storyboard,
   VideoDefaults,
 } from "@motionly/shared";
+import { storyboardSchema } from "@motionly/shared";
 import { createHash } from "node:crypto";
 import {
   ObjectId,
@@ -36,15 +38,64 @@ type ProjectVersionDocument = {
   ownerId: string;
   projectId: ObjectId;
   revision: number;
+  basedOnVersionId?: ObjectId;
   source: {
     inputMode: ProjectInputMode;
     topic?: string;
     sourceScript?: string;
   };
   videoDefaults: VideoDefaults;
+  script?: string;
+  storyboard?: Storyboard;
+  templateRegistryVersion?: string;
+  planningProvenance?: {
+    provider: "GOOGLE_GEMINI";
+    model: string;
+    sdkVersion: string;
+    generatedAt: Date;
+    usedFallback: false;
+  };
+  validation?: {
+    valid: true;
+    warnings: string[];
+    totalFrames: number;
+  };
   contentHash: string;
-  approval: { status: "DRAFT" };
+  approval: {
+    status: "DRAFT" | "REVIEW_READY" | "APPROVED";
+    approvedBy?: string;
+    approvedAt?: Date;
+    approvedContentHash?: string;
+  };
   createdAt: Date;
+  schemaVersion: "1";
+};
+
+type PlanningJobDocument = {
+  _id: ObjectId;
+  ownerId: string;
+  projectId: ObjectId;
+  sourceVersionId: ObjectId;
+  previousProjectStatus: "DRAFT" | "REVIEW_READY";
+  status: "GENERATING" | "COMPLETED" | "FAILED";
+  progress: number;
+  attempt: number;
+  inputHash: string;
+  outputVersionId?: ObjectId;
+  provider?: {
+    name: "GOOGLE_GEMINI";
+    model: string;
+  };
+  error?: {
+    code: "PLANNING_FAILED";
+    safeMessage: string;
+    retryable: boolean;
+    occurredAt: Date;
+  };
+  createdAt: Date;
+  startedAt: Date;
+  updatedAt: Date;
+  completedAt?: Date;
   schemaVersion: "1";
 };
 
@@ -57,12 +108,49 @@ export type ProjectSummary = {
   currentVersionId: string;
   video: VideoDefaults;
   archived: boolean;
+  canDelete: boolean;
   createdAt: string;
   updatedAt: string;
 };
 
 export type ProjectDraft = ProjectSummary & {
   content: string;
+};
+
+export type ProjectPlan = {
+  project: ProjectSummary;
+  versionId: string;
+  revision: number;
+  script: string;
+  storyboard: Storyboard;
+  contentHash: string;
+  approvalStatus: "REVIEW_READY" | "APPROVED";
+  isCurrent: boolean;
+  generatedBy: {
+    provider: "GOOGLE_GEMINI";
+    model: string;
+    generatedAt: string;
+  };
+};
+
+export type ProjectStoryboardRevision = {
+  versionId: string;
+  revision: number;
+  approvalStatus: "REVIEW_READY" | "APPROVED";
+  sceneCount: number;
+  durationSeconds: number;
+  model: string;
+  createdAt: string;
+  isCurrent: boolean;
+};
+
+export type PlanningInput = {
+  jobId: string;
+  projectId: string;
+  sourceVersionId: string;
+  inputMode: ProjectInputMode;
+  content: string;
+  video: VideoDefaults;
 };
 
 export function buildOwnedProjectsFilter(
@@ -77,6 +165,24 @@ export function buildOwnedProjectsFilter(
         ownerId: normalizedOwnerId,
         status: { $nin: ["ARCHIVED", "DELETING"] },
       };
+}
+
+export function getPlanningReadiness(status: ProjectStatus) {
+  if (status === "PLANNING") return "already_planning" as const;
+  if (status === "DRAFT" || status === "REVIEW_READY") {
+    return "ready" as const;
+  }
+  return "not_ready" as const;
+}
+
+export function getRevisionSelectionReadiness(
+  status: ProjectStatus,
+  isCurrentVersion: boolean,
+) {
+  if (status === "PLANNING") return "busy" as const;
+  if (status !== "REVIEW_READY") return "not_ready" as const;
+  if (isCurrentVersion) return "current" as const;
+  return "ready" as const;
 }
 
 function projectCollection(
@@ -95,6 +201,9 @@ function toSummary(project: ProjectDocument): ProjectSummary {
     currentVersionId: project.currentVersionId.toHexString(),
     video: project.videoDefaults,
     archived: project.status === "ARCHIVED",
+    canDelete:
+      project.status === "DRAFT" ||
+      (project.status === "ARCHIVED" && project.previousStatus === "DRAFT"),
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   };
@@ -103,6 +212,10 @@ function toSummary(project: ProjectDocument): ProjectSummary {
 function contentHash(input: CreateProjectRequest): string {
   const source = input.inputMode === "TOPIC" ? input.topic : input.sourceScript;
   return `sha256:${createHash("sha256").update(source).digest("hex")}`;
+}
+
+function hashValue(value: string): string {
+  return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 
 async function insertProject(
@@ -315,7 +428,13 @@ export async function setProjectArchived(
   const database = await getDatabase();
   const projects = projectCollection(database);
   const existing = await projects.findOne({ _id: id, ownerId });
-  if (!existing || existing.status === "DELETING") return null;
+  if (
+    !existing ||
+    existing.status === "DELETING" ||
+    existing.status === "PLANNING"
+  ) {
+    return null;
+  }
 
   if (archived && existing.status !== "ARCHIVED") {
     const updated = await projects.findOneAndUpdate(
@@ -384,6 +503,628 @@ export async function deleteDraftProject(
         { session },
       );
       result = "deleted";
+    });
+    return result;
+  } finally {
+    await session.endSession();
+  }
+}
+
+export async function beginProjectPlanning(
+  ownerId: string,
+  projectId: string,
+): Promise<
+  | { ok: true; input: PlanningInput }
+  | {
+      ok: false;
+      reason: "not_found" | "not_ready" | "already_planning";
+    }
+> {
+  const id = toObjectId(projectId);
+  if (!id) return { ok: false, reason: "not_found" };
+  const database = await getDatabase();
+  const client = getDatabaseClient();
+  const session = client.startSession();
+  try {
+    let outcome:
+      | { ok: true; input: PlanningInput }
+      | {
+          ok: false;
+          reason: "not_found" | "not_ready" | "already_planning";
+        } = { ok: false, reason: "not_found" };
+    await session.withTransaction(async () => {
+      const project = await projectCollection(database).findOne(
+        { _id: id, ownerId },
+        { session },
+      );
+      if (!project) return;
+      if (project.status === "PLANNING") {
+        const interruptedJob = await database
+          .collection<PlanningJobDocument>("planningJobs")
+          .findOne(
+            { projectId: id, ownerId, status: "GENERATING" },
+            { session, sort: { updatedAt: -1 } },
+          );
+        const staleBefore = Date.now() - 60 * 1_000;
+        if (
+          !interruptedJob ||
+          interruptedJob.updatedAt.getTime() > staleBefore
+        ) {
+          outcome = { ok: false, reason: "already_planning" };
+          return;
+        }
+
+        const recoveredAt = new Date();
+        await database
+          .collection<PlanningJobDocument>("planningJobs")
+          .updateOne(
+            { _id: interruptedJob._id, ownerId, status: "GENERATING" },
+            {
+              $set: {
+                status: "FAILED",
+                progress: 100,
+                error: {
+                  code: "PLANNING_FAILED",
+                  safeMessage:
+                    "The previous planning attempt was interrupted. Please retry.",
+                  retryable: true,
+                  occurredAt: recoveredAt,
+                },
+                updatedAt: recoveredAt,
+                completedAt: recoveredAt,
+              },
+            },
+            { session },
+          );
+        await projectCollection(database).updateOne(
+          { _id: id, ownerId, status: "PLANNING" },
+          {
+            $set: {
+              status: interruptedJob.previousProjectStatus,
+              updatedAt: recoveredAt,
+            },
+            $inc: { recordVersion: 1 },
+          },
+          { session },
+        );
+        project.status = interruptedJob.previousProjectStatus;
+        project.updatedAt = recoveredAt;
+      }
+      const readiness = getPlanningReadiness(project.status);
+      if (readiness === "already_planning") {
+        outcome = { ok: false, reason: "already_planning" };
+        return;
+      }
+      if (
+        readiness === "not_ready" ||
+        (project.status !== "DRAFT" && project.status !== "REVIEW_READY")
+      ) {
+        outcome = { ok: false, reason: "not_ready" };
+        return;
+      }
+      const previousProjectStatus = project.status;
+      const version = await database
+        .collection<ProjectVersionDocument>("projectVersions")
+        .findOne(
+          {
+            _id: project.currentVersionId,
+            projectId: id,
+            ownerId,
+          },
+          { session },
+        );
+      if (!version) return;
+      const content =
+        version.source.inputMode === "TOPIC"
+          ? (version.source.topic ?? "")
+          : (version.source.sourceScript ?? "");
+      if (!content) return;
+      const now = new Date();
+      const jobId = new ObjectId();
+      const update = await projectCollection(database).updateOne(
+        {
+          _id: id,
+          ownerId,
+          status: project.status,
+          currentVersionId: project.currentVersionId,
+        },
+        {
+          $set: { status: "PLANNING", updatedAt: now },
+          $inc: { recordVersion: 1 },
+        },
+        { session },
+      );
+      if (!update.modifiedCount) {
+        outcome = { ok: false, reason: "already_planning" };
+        return;
+      }
+      await database.collection<PlanningJobDocument>("planningJobs").insertOne(
+        {
+          _id: jobId,
+          ownerId,
+          projectId: id,
+          sourceVersionId: project.currentVersionId,
+          previousProjectStatus,
+          status: "GENERATING",
+          progress: 20,
+          attempt: 1,
+          inputHash: hashValue(
+            JSON.stringify({
+              sourceVersionId: project.currentVersionId.toHexString(),
+              content,
+              video: version.videoDefaults,
+            }),
+          ),
+          createdAt: now,
+          startedAt: now,
+          updatedAt: now,
+          schemaVersion: "1",
+        },
+        { session },
+      );
+      outcome = {
+        ok: true,
+        input: {
+          jobId: jobId.toHexString(),
+          projectId: id.toHexString(),
+          sourceVersionId: project.currentVersionId.toHexString(),
+          inputMode: version.source.inputMode,
+          content,
+          video: version.videoDefaults,
+        },
+      };
+    });
+    return outcome;
+  } finally {
+    await session.endSession();
+  }
+}
+
+export async function failProjectPlanning(
+  ownerId: string,
+  jobId: string,
+): Promise<void> {
+  const id = toObjectId(jobId);
+  if (!id) return;
+  const database = await getDatabase();
+  const client = getDatabaseClient();
+  const session = client.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const job = await database
+        .collection<PlanningJobDocument>("planningJobs")
+        .findOne({ _id: id, ownerId, status: "GENERATING" }, { session });
+      if (!job) return;
+      const now = new Date();
+      await database.collection<PlanningJobDocument>("planningJobs").updateOne(
+        { _id: id, ownerId, status: "GENERATING" },
+        {
+          $set: {
+            status: "FAILED",
+            progress: 100,
+            error: {
+              code: "PLANNING_FAILED",
+              safeMessage:
+                "We could not create this storyboard. Please try again.",
+              retryable: true,
+              occurredAt: now,
+            },
+            updatedAt: now,
+            completedAt: now,
+          },
+        },
+        { session },
+      );
+      await projectCollection(database).updateOne(
+        {
+          _id: job.projectId,
+          ownerId,
+          status: "PLANNING",
+          currentVersionId: job.sourceVersionId,
+        },
+        {
+          $set: { status: job.previousProjectStatus, updatedAt: now },
+          $inc: { recordVersion: 1 },
+        },
+        { session },
+      );
+    });
+  } finally {
+    await session.endSession();
+  }
+}
+
+export async function completeProjectPlanning(
+  ownerId: string,
+  jobId: string,
+  generated: {
+    storyboard: Storyboard;
+    provider: "GOOGLE_GEMINI";
+    model: string;
+    generatedAt: string;
+  },
+): Promise<ProjectPlan> {
+  const id = toObjectId(jobId);
+  if (!id) throw new Error("Planning job was not found.");
+  const storyboard = storyboardSchema.parse(generated.storyboard);
+  const database = await getDatabase();
+  const client = getDatabaseClient();
+  const session = client.startSession();
+  try {
+    let completed: ProjectPlan | undefined;
+    await session.withTransaction(async () => {
+      const job = await database
+        .collection<PlanningJobDocument>("planningJobs")
+        .findOne({ _id: id, ownerId, status: "GENERATING" }, { session });
+      if (!job) throw new Error("Planning job is no longer active.");
+      const project = await projectCollection(database).findOne(
+        {
+          _id: job.projectId,
+          ownerId,
+          status: "PLANNING",
+          currentVersionId: job.sourceVersionId,
+        },
+        { session },
+      );
+      if (!project) throw new Error("Project changed while planning.");
+      const sourceVersion = await database
+        .collection<ProjectVersionDocument>("projectVersions")
+        .findOne(
+          { _id: job.sourceVersionId, projectId: job.projectId, ownerId },
+          { session },
+        );
+      if (!sourceVersion) throw new Error("Source version was not found.");
+      const now = new Date();
+      const versionId = new ObjectId();
+      const revision = project.revisionCounter + 1;
+      const script = storyboard.scenes
+        .map((scene) => scene.narration)
+        .join("\n\n");
+      const plannedHash = hashValue(
+        JSON.stringify({
+          source: sourceVersion.source,
+          script,
+          storyboard,
+          videoDefaults: sourceVersion.videoDefaults,
+        }),
+      );
+      const version: ProjectVersionDocument = {
+        _id: versionId,
+        ownerId,
+        projectId: job.projectId,
+        revision,
+        basedOnVersionId: job.sourceVersionId,
+        source: sourceVersion.source,
+        videoDefaults: sourceVersion.videoDefaults,
+        script,
+        storyboard,
+        templateRegistryVersion: "2026-11-09.1",
+        planningProvenance: {
+          provider: generated.provider,
+          model: generated.model,
+          sdkVersion: "2.32.0",
+          generatedAt: new Date(generated.generatedAt),
+          usedFallback: false,
+        },
+        validation: {
+          valid: true,
+          warnings: [],
+          totalFrames:
+            storyboard.video.targetDurationSeconds * storyboard.video.fps,
+        },
+        contentHash: plannedHash,
+        approval: { status: "REVIEW_READY" },
+        createdAt: now,
+        schemaVersion: "1",
+      };
+      await database
+        .collection<ProjectVersionDocument>("projectVersions")
+        .insertOne(version, { session });
+      const projectUpdate = await projectCollection(database).findOneAndUpdate(
+        {
+          _id: job.projectId,
+          ownerId,
+          status: "PLANNING",
+          currentVersionId: job.sourceVersionId,
+        },
+        {
+          $set: {
+            status: "REVIEW_READY",
+            currentVersionId: versionId,
+            revisionCounter: revision,
+            updatedAt: now,
+          },
+          $inc: { recordVersion: 1 },
+        },
+        { session, returnDocument: "after" },
+      );
+      if (!projectUpdate) throw new Error("Project changed while planning.");
+      await database.collection<PlanningJobDocument>("planningJobs").updateOne(
+        { _id: id, ownerId, status: "GENERATING" },
+        {
+          $set: {
+            status: "COMPLETED",
+            progress: 100,
+            outputVersionId: versionId,
+            provider: { name: generated.provider, model: generated.model },
+            updatedAt: now,
+            completedAt: now,
+          },
+        },
+        { session },
+      );
+      completed = {
+        project: toSummary(projectUpdate),
+        versionId: versionId.toHexString(),
+        revision,
+        script,
+        storyboard,
+        contentHash: plannedHash,
+        approvalStatus: "REVIEW_READY",
+        isCurrent: true,
+        generatedBy: {
+          provider: generated.provider,
+          model: generated.model,
+          generatedAt: generated.generatedAt,
+        },
+      };
+    });
+    if (!completed) throw new Error("Planning did not complete.");
+    return completed;
+  } finally {
+    await session.endSession();
+  }
+}
+
+export async function getProjectPlan(
+  ownerId: string,
+  projectId: string,
+): Promise<ProjectPlan | null> {
+  const id = toObjectId(projectId);
+  if (!id) return null;
+  const database = await getDatabase();
+  const project = await projectCollection(database).findOne({
+    _id: id,
+    ownerId,
+    status: { $in: ["REVIEW_READY", "APPROVED"] },
+  });
+  if (!project) return null;
+  const version = await database
+    .collection<ProjectVersionDocument>("projectVersions")
+    .findOne({ _id: project.currentVersionId, projectId: id, ownerId });
+  if (!version?.storyboard || !version.script || !version.planningProvenance) {
+    return null;
+  }
+  const parsed = storyboardSchema.safeParse(version.storyboard);
+  if (!parsed.success) return null;
+  return {
+    project: toSummary(project),
+    versionId: version._id.toHexString(),
+    revision: version.revision,
+    script: version.script,
+    storyboard: parsed.data,
+    contentHash: version.contentHash,
+    approvalStatus:
+      version.approval.status === "APPROVED" ? "APPROVED" : "REVIEW_READY",
+    isCurrent: project.currentVersionId.equals(version._id),
+    generatedBy: {
+      provider: version.planningProvenance.provider,
+      model: version.planningProvenance.model,
+      generatedAt: version.planningProvenance.generatedAt.toISOString(),
+    },
+  };
+}
+
+export async function listProjectStoryboardRevisions(
+  ownerId: string,
+  projectId: string,
+): Promise<ProjectStoryboardRevision[]> {
+  const id = toObjectId(projectId);
+  if (!id) return [];
+  const database = await getDatabase();
+  const project = await projectCollection(database).findOne({
+    _id: id,
+    ownerId,
+    status: { $in: ["REVIEW_READY", "APPROVED"] },
+  });
+  if (!project) return [];
+  const versions = await database
+    .collection<ProjectVersionDocument>("projectVersions")
+    .find({
+      projectId: id,
+      ownerId,
+      storyboard: { $exists: true },
+      planningProvenance: { $exists: true },
+    })
+    .sort({ revision: -1 })
+    .limit(50)
+    .toArray();
+  return versions.flatMap((version) => {
+    if (!version.storyboard || !version.planningProvenance) return [];
+    const parsed = storyboardSchema.safeParse(version.storyboard);
+    if (!parsed.success) return [];
+    const durationSeconds = parsed.data.scenes.reduce(
+      (total, scene) => total + scene.durationEstimateSeconds,
+      0,
+    );
+    return [
+      {
+        versionId: version._id.toHexString(),
+        revision: version.revision,
+        approvalStatus:
+          version.approval.status === "APPROVED"
+            ? ("APPROVED" as const)
+            : ("REVIEW_READY" as const),
+        sceneCount: parsed.data.scenes.length,
+        durationSeconds,
+        model: version.planningProvenance.model,
+        createdAt: version.createdAt.toISOString(),
+        isCurrent: project.currentVersionId.equals(version._id),
+      },
+    ];
+  });
+}
+
+export async function makeProjectStoryboardRevisionCurrent(
+  ownerId: string,
+  projectId: string,
+  versionId: string,
+): Promise<"selected" | "not_found" | "not_ready" | "current" | "conflict"> {
+  const id = toObjectId(projectId);
+  const sourceVersionId = toObjectId(versionId);
+  if (!id || !sourceVersionId) return "not_found";
+  const database = await getDatabase();
+  const client = getDatabaseClient();
+  const session = client.startSession();
+  try {
+    let result:
+      "selected" | "not_found" | "not_ready" | "current" | "conflict" =
+      "not_found";
+    await session.withTransaction(async () => {
+      const project = await projectCollection(database).findOne(
+        { _id: id, ownerId },
+        { session },
+      );
+      if (!project) return;
+      const readiness = getRevisionSelectionReadiness(
+        project.status,
+        project.currentVersionId.equals(sourceVersionId),
+      );
+      if (readiness !== "ready") {
+        result = readiness === "current" ? "current" : "not_ready";
+        return;
+      }
+      const sourceVersion = await database
+        .collection<ProjectVersionDocument>("projectVersions")
+        .findOne(
+          {
+            _id: sourceVersionId,
+            projectId: id,
+            ownerId,
+            storyboard: { $exists: true },
+            script: { $exists: true },
+            planningProvenance: { $exists: true },
+            "approval.status": "REVIEW_READY",
+          },
+          { session },
+        );
+      if (
+        !sourceVersion?.storyboard ||
+        !sourceVersion.script ||
+        !sourceVersion.planningProvenance ||
+        !storyboardSchema.safeParse(sourceVersion.storyboard).success
+      ) {
+        return;
+      }
+      const projectUpdate = await projectCollection(database).updateOne(
+        {
+          _id: id,
+          ownerId,
+          status: "REVIEW_READY",
+          currentVersionId: project.currentVersionId,
+          revisionCounter: project.revisionCounter,
+        },
+        {
+          $set: { currentVersionId: sourceVersionId, updatedAt: new Date() },
+          $inc: { recordVersion: 1 },
+        },
+        { session },
+      );
+      result = projectUpdate.modifiedCount ? "selected" : "conflict";
+    });
+    return result;
+  } finally {
+    await session.endSession();
+  }
+}
+
+export async function approveProjectPlan(
+  ownerId: string,
+  projectId: string,
+  versionId: string,
+  expectedContentHash: string,
+): Promise<"approved" | "not_found" | "conflict"> {
+  const id = toObjectId(projectId);
+  const versionObjectId = toObjectId(versionId);
+  if (!id || !versionObjectId) return "not_found";
+  const database = await getDatabase();
+  const client = getDatabaseClient();
+  const session = client.startSession();
+  try {
+    let result: "approved" | "not_found" | "conflict" = "not_found";
+    await session.withTransaction(async () => {
+      const project = await projectCollection(database).findOne(
+        { _id: id, ownerId },
+        { session },
+      );
+      if (!project) return;
+      if (
+        project.status !== "REVIEW_READY" ||
+        !project.currentVersionId.equals(versionObjectId)
+      ) {
+        result = "conflict";
+        return;
+      }
+      const version = await database
+        .collection<ProjectVersionDocument>("projectVersions")
+        .findOne(
+          {
+            _id: versionObjectId,
+            projectId: id,
+            ownerId,
+            "approval.status": "REVIEW_READY",
+            contentHash: expectedContentHash,
+          },
+          { session },
+        );
+      if (!version) {
+        result = "conflict";
+        return;
+      }
+      const now = new Date();
+      const versionUpdate = await database
+        .collection<ProjectVersionDocument>("projectVersions")
+        .updateOne(
+          {
+            _id: versionObjectId,
+            projectId: id,
+            ownerId,
+            "approval.status": "REVIEW_READY",
+            contentHash: expectedContentHash,
+          },
+          {
+            $set: {
+              approval: {
+                status: "APPROVED",
+                approvedBy: ownerId,
+                approvedAt: now,
+                approvedContentHash: version.contentHash,
+              },
+            },
+          },
+          { session },
+        );
+      if (!versionUpdate.modifiedCount) {
+        result = "conflict";
+        return;
+      }
+      const projectUpdate = await projectCollection(database).updateOne(
+        {
+          _id: id,
+          ownerId,
+          status: "REVIEW_READY",
+          currentVersionId: versionObjectId,
+        },
+        {
+          $set: { status: "APPROVED", updatedAt: now },
+          $inc: { recordVersion: 1 },
+        },
+        { session },
+      );
+      if (!projectUpdate.modifiedCount) {
+        throw new Error("Project changed while approving the plan.");
+      }
+      result = "approved";
     });
     return result;
   } finally {

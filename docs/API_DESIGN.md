@@ -492,6 +492,8 @@ Behavior:
 
 Response: `202 Accepted`.
 
+Implementation note for Phase 4A: until the Inngest worker is introduced, the authenticated Next.js route creates a durable `planningJobs` record, performs the bounded Gemini call within the request, persists the validated immutable revision, and returns `201 Created`. The state model and job record are intentionally compatible with the future asynchronous `202 Accepted` workflow.
+
 ```json
 {
   "data": {
@@ -586,6 +588,30 @@ Idempotency-Key: ...
 The supplied hash must match the server-computed normalized content hash, preventing approval of content different from what the user reviewed.
 
 Response: `200 OK` with immutable approval metadata.
+
+### 14.7 Make an earlier storyboard current
+
+```http
+POST /api/v1/projects/:projectId/versions/:versionId/make-current
+```
+
+```json
+{
+  "confirmation": "MAKE_CURRENT"
+}
+```
+
+The server changes only the project's current-version pointer. It does not copy, modify, or delete any immutable version. For example, selecting Revision 2 while Revision 3 is current makes Revision 2 current and keeps Revision 3 in history. A later regeneration creates Revision 4 from the selected Revision 2 because `revisionCounter` remains monotonic.
+
+Rules:
+
+- The project and selected version must belong to the authenticated owner.
+- Switching is allowed only while the project and selected version are `REVIEW_READY`; approved projects stay locked.
+- Selecting the already-current version returns `409 Conflict`.
+- Concurrent regeneration, selection, or approval conflicts return `409 Conflict`.
+- No duplicate version is inserted and `revisionCounter` is unchanged.
+
+Response: `200 OK` with `{ "data": { "status": "REVIEW_READY" } }`.
 
 ## 15. Generation endpoints
 

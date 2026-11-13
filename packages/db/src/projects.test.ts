@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildOwnedProjectsFilter } from "./projects";
+import {
+  buildOwnedProjectsFilter,
+  getPlanningReadiness,
+  getRevisionSelectionReadiness,
+} from "./projects";
 
 describe("project ownership filter", () => {
   it("always scopes project lists to the authenticated owner", () => {
@@ -23,5 +27,30 @@ describe("project ownership filter", () => {
       ownerId: "user-a",
       status: "ARCHIVED",
     });
+  });
+});
+
+describe("project planning readiness", () => {
+  it("allows initial planning and regeneration from review", () => {
+    expect(getPlanningReadiness("DRAFT")).toBe("ready");
+    expect(getPlanningReadiness("REVIEW_READY")).toBe("ready");
+  });
+
+  it("prevents duplicate and invalid planning transitions", () => {
+    expect(getPlanningReadiness("PLANNING")).toBe("already_planning");
+    expect(getPlanningReadiness("APPROVED")).toBe("not_ready");
+    expect(getPlanningReadiness("ARCHIVED")).toBe("not_ready");
+  });
+});
+
+describe("storyboard revision selection readiness", () => {
+  it("selects only a historical revision while the project is in review", () => {
+    expect(getRevisionSelectionReadiness("REVIEW_READY", false)).toBe("ready");
+    expect(getRevisionSelectionReadiness("REVIEW_READY", true)).toBe("current");
+  });
+
+  it("blocks selection during planning and after approval", () => {
+    expect(getRevisionSelectionReadiness("PLANNING", false)).toBe("busy");
+    expect(getRevisionSelectionReadiness("APPROVED", false)).toBe("not_ready");
   });
 });

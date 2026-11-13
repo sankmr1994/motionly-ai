@@ -22,4 +22,25 @@ export const migrations: Migration[] = [
       });
     },
   },
+  {
+    id: "002-planning-job-indexes",
+    description: "Add owner and project indexes for durable planning jobs",
+    async up(database) {
+      await database
+        .collection("planningJobs")
+        .createIndex({ ownerId: 1, createdAt: -1, _id: -1 });
+      await database
+        .collection("planningJobs")
+        .createIndex({ projectId: 1, createdAt: -1 });
+      await database
+        .collection("planningJobs")
+        .createIndex({ status: 1, updatedAt: 1 });
+      await database.collection("planningJobs").createIndex(
+        { ownerId: 1, projectId: 1, status: 1 },
+        {
+          partialFilterExpression: { status: "GENERATING" },
+        },
+      );
+    },
+  },
 ];

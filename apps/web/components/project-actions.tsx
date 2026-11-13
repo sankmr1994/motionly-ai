@@ -1,5 +1,6 @@
 "use client";
 
+import type { ProjectStatus } from "@motionly/shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -14,11 +15,15 @@ type Dialog = "rename" | "delete" | null;
 
 export function ProjectActions({
   archived,
+  canDelete,
   projectId,
+  status,
   title,
 }: {
   archived: boolean;
+  canDelete: boolean;
   projectId: string;
+  status: ProjectStatus;
   title: string;
 }) {
   const router = useRouter();
@@ -61,13 +66,22 @@ export function ProjectActions({
 
       {menuOpen ? (
         <div className="project-actions-menu" role="menu">
-          {!archived ? (
+          {!archived && status === "DRAFT" ? (
             <Link
               role="menuitem"
               href={`/dashboard/create?projectId=${projectId}`}
             >
               <StudioIcon name="edit" />
               Edit draft
+            </Link>
+          ) : null}
+          {!archived && (status === "REVIEW_READY" || status === "APPROVED") ? (
+            <Link
+              role="menuitem"
+              href={`/dashboard/projects/${projectId}/storyboard`}
+            >
+              <StudioIcon name="projects" />
+              {status === "APPROVED" ? "View storyboard" : "Review storyboard"}
             </Link>
           ) : null}
           <button
@@ -82,27 +96,31 @@ export function ProjectActions({
             <StudioIcon name="projects" />
             Rename
           </button>
-          <button
-            type="button"
-            role="menuitem"
-            disabled={pending}
-            onClick={archiveOrRestore}
-          >
-            <StudioIcon name={archived ? "restore" : "archive"} />
-            {archived ? "Restore" : "Archive"}
-          </button>
-          <button
-            className="danger"
-            type="button"
-            role="menuitem"
-            onClick={() => {
-              setDialog("delete");
-              setMenuOpen(false);
-            }}
-          >
-            <StudioIcon name="trash" />
-            Delete draft
-          </button>
+          {status !== "PLANNING" ? (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={pending}
+              onClick={archiveOrRestore}
+            >
+              <StudioIcon name={archived ? "restore" : "archive"} />
+              {archived ? "Restore" : "Archive"}
+            </button>
+          ) : null}
+          {canDelete ? (
+            <button
+              className="danger"
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setDialog("delete");
+                setMenuOpen(false);
+              }}
+            >
+              <StudioIcon name="trash" />
+              Delete draft
+            </button>
+          ) : null}
         </div>
       ) : null}
 

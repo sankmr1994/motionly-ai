@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ProjectActions } from "../../components/project-actions";
 import { StudioIcon } from "../../components/studio-icon";
 import { StudioShell } from "../../components/studio-shell";
+import { StoryboardActionButton } from "../../components/storyboard-action-button";
 import { requireStudioSession } from "../../lib/studio-session";
 
 export default async function DashboardPage({
@@ -145,7 +146,9 @@ export default async function DashboardPage({
                     </div>
                     <ProjectActions
                       archived={project.archived}
+                      canDelete={project.canDelete}
                       projectId={project.id}
+                      status={project.status}
                       title={project.title}
                     />
                   </div>
@@ -163,9 +166,34 @@ export default async function DashboardPage({
                         dateStyle: "medium",
                       }).format(new Date(project.updatedAt))}
                     </time>
-                    <span>
-                      {project.archived ? "Stored safely" : "Planning is next"}
-                    </span>
+                    {project.archived ? (
+                      <span>Stored safely</span>
+                    ) : project.status === "DRAFT" ? (
+                      <StoryboardActionButton
+                        mode="plan"
+                        projectId={project.id}
+                        variant="secondary"
+                      />
+                    ) : project.status === "REVIEW_READY" ||
+                      project.status === "APPROVED" ? (
+                      <Link
+                        className="project-review-link"
+                        href={`/dashboard/projects/${project.id}/storyboard`}
+                      >
+                        {project.status === "APPROVED"
+                          ? "View approved plan"
+                          : "Review storyboard"}
+                      </Link>
+                    ) : project.status === "PLANNING" ? (
+                      <StoryboardActionButton
+                        mode="plan"
+                        projectId={project.id}
+                        variant="secondary"
+                        label="Retry storyboard"
+                      />
+                    ) : (
+                      <span>{project.status.replaceAll("_", " ")}</span>
+                    )}
                   </footer>
                 </div>
               </article>

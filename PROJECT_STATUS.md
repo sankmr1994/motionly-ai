@@ -2,9 +2,9 @@
 
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
-Last updated: **2026-11-11**
-Current implementation phase: **Phase 3 — Dashboard and project foundation implemented**
-Next planned phase: **Phase 4 — Idea-to-storyboard workflow, after Phase 3 approval**
+Last updated: **2026-11-12**
+Current implementation phase: **Phase 4 — Idea-to-storyboard workflow in progress**
+Next planned phase: **Phase 4B — Storyboard text editing and source-reference support**
 
 ## 1. Product summary
 
@@ -14,20 +14,20 @@ V1 is creator-first and Instagram-first. Billing, subscriptions, payments, and i
 
 ## 2. Status at a glance
 
-| Phase                    | Scope                                                                            | Status                                                      |
-| ------------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| Product and architecture | PRD, system, API, database, Instagram integration, brand direction               | Complete                                                    |
-| Video proof of concept   | Solar eclipse, compound interest, binary search                                  | Complete and verified                                       |
-| Phase 0                  | Monorepo foundation, configuration, database adapter, health checks, logging, CI | Complete                                                    |
-| Phase 1                  | Porcelain Cobalt design system and public homepage                               | Approved, implemented, and browser-verified                 |
-| Phase 2                  | Email/password authentication, verification, recovery, and onboarding            | Core flow implemented; live recovery delivery check remains |
-| Phase 3                  | Dashboard and project management                                                 | Foundation implemented; product-owner visual review pending |
-| Phase 4                  | Idea-to-storyboard workflow                                                      | POC components exist; product workflow not implemented      |
-| Phase 5                  | Production video-generation pipeline                                             | POC complete; hosted asynchronous pipeline not implemented  |
-| Phase 6                  | Completed-video experience                                                       | Designed; not implemented                                   |
-| Phase 7                  | Manual Instagram publishing and one-time scheduling                              | Designed; not implemented                                   |
-| Phase 8                  | Recurring content generation and publishing                                      | Designed; not implemented                                   |
-| Phase 9                  | Production hardening and launch                                                  | Not started                                                 |
+| Phase                    | Scope                                                                            | Status                                                                                                   |
+| ------------------------ | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Product and architecture | PRD, system, API, database, Instagram integration, brand direction               | Complete                                                                                                 |
+| Video proof of concept   | Solar eclipse, compound interest, binary search                                  | Complete and verified                                                                                    |
+| Phase 0                  | Monorepo foundation, configuration, database adapter, health checks, logging, CI | Complete                                                                                                 |
+| Phase 1                  | Porcelain Cobalt design system and public homepage                               | Approved, implemented, and browser-verified                                                              |
+| Phase 2                  | Email/password authentication, verification, recovery, and onboarding            | Core flow implemented; live recovery delivery check remains                                              |
+| Phase 3                  | Dashboard and project management                                                 | Complete and product-owner approved                                                                      |
+| Phase 4                  | Idea-to-storyboard workflow                                                      | Initial generation, review, regeneration, and approval slice implemented; editing and references pending |
+| Phase 5                  | Production video-generation pipeline                                             | POC complete; hosted asynchronous pipeline not implemented                                               |
+| Phase 6                  | Completed-video experience                                                       | Designed; not implemented                                                                                |
+| Phase 7                  | Manual Instagram publishing and one-time scheduling                              | Designed; not implemented                                                                                |
+| Phase 8                  | Recurring content generation and publishing                                      | Designed; not implemented                                                                                |
+| Phase 9                  | Production hardening and launch                                                  | Not started                                                                                              |
 
 ## 3. Phase 0 completed work
 
@@ -107,6 +107,21 @@ Phase 3 dashboard and project foundation implemented on **2026-11-11**:
 - Type checking, 12 automated tests, the Next.js production build, migration, liveness endpoint, protected dashboard redirect, and unauthenticated project API responses passed.
 - Signed-in desktop and narrow responsive browser QA confirmed that My Videos and the first draft card are visible without scrolling past an oversized onboarding panel.
 
+Phase 4A idea-to-storyboard vertical slice implemented on **2026-11-12**:
+
+- Added Gemini-backed scene planning for topic and full-script projects. Motionly deterministically compiles the AI scene content into registered templates, exact 30/45/60-second timing, allowlisted animation actions, and a strictly validated storyboard.
+- Added durable owner-scoped planning jobs and safe project transitions from `DRAFT` or `REVIEW_READY` through `PLANNING` to `REVIEW_READY`; provider failures restore the prior safe project state.
+- Added immutable planned project revisions with source lineage, generated script, storyboard, exact provider/model provenance, template-registry version, validation summary, frame count, and content hash.
+- Added a combined storyboard review screen with scene narration, visual objects, motion actions, plan summary, factual-verification warning, regeneration, and explicit approval.
+- Added storyboard revision history and safe current-version selection. A compact sidebar trigger opens a responsive history drawer with five newest-first revisions per page; selecting an older storyboard changes only the current-version pointer, creates no duplicate, preserves every version, and requires confirmation. Regeneration alone creates the next immutable revision, and approved projects remain locked.
+- Added a final approval confirmation dialog and server-side confirmation guard so a single accidental click cannot lock a storyboard revision.
+- Added transactional approval that locks the reviewed content hash and moves the project to `APPROVED`; narration and video rendering remain intentionally out of scope.
+- Added authenticated planning and approval API routes plus migration `002-planning-job-indexes`.
+- Automated verification passed for the revision-history addition: affected package type checks and all 18 automated tests. The earlier Phase 4A baseline also passed formatting, diff validation, the optimized Next.js production build, and the configured Atlas migration runner.
+- Live Gemini and browser verification passed on **2026-11-12**: `gemini-3.5-flash-lite` generated a valid five-scene, 30-second compound-interest plan, MongoDB saved immutable Revision 2, and the application navigated to the complete storyboard review screen. The revision was intentionally left unapproved for product-owner review.
+- Hardened provider/database reliability with a 90-second single-attempt Gemini deadline, one-minute interrupted-job recovery, safe failure cleanup, transient MongoDB retries, and a 15-second Atlas cold-start selection window.
+- Storyboard text editing and source-reference retrieval remain deferred to Phase 4B.
+
 ## 5. Existing validated video POCs
 
 The repository already proves the deterministic rendering approach with three narrated vertical videos:
@@ -179,14 +194,14 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 
 - MongoDB Atlas is configured and connectivity-tested locally; production deployment configuration remains deferred.
 - Remotion licensing must be confirmed before commercial production launch.
-- The production Gemini model remains environment-configurable and must be confirmed against account availability and quotas.
+- The production Gemini model remains environment-configurable. Live account verification currently supports and uses `gemini-3.5-flash-lite`; `gemini-2.5-flash-lite` is listed by the API but rejects new users and must not be selected.
 - Better Auth and the initial project repositories are wired. Inngest workflows, R2 storage, and Sentry remain deferred to their planned phases.
 - Instagram publishing requires an eligible Creator or Business account and Meta app review; it is design-only today.
 - Stitch screens 01–18 are approved. The public homepage is implemented; authenticated product screens remain design-only.
 
 ## 10. Exact next action
 
-Product owner reviews the authenticated dashboard, responsive navigation, Create New Video screen, and saved-draft project card. Address any design-fidelity feedback before beginning Phase 4. After approval, implement Gemini-backed topic/script planning as a durable, validated idea-to-storyboard workflow; do not add narration or rendering in that slice.
+Product owner reviews the generated Revision 2, then manually verifies regeneration and approval. After approval, implement simple narration/scene-description edits and source-reference support as Phase 4B; do not begin narration or rendering yet.
 
 ## 11. Update protocol for future developers and agents
 

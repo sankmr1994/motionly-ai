@@ -20,4 +20,11 @@ describe("storyboard contract", () => {
     invalid.scenes[0]!.durationEstimateSeconds = 4;
     expect(storyboardSchema.safeParse(invalid).success).toBe(false);
   });
+
+  it("accepts a storyboard matching a 45-second project duration", () => {
+    const storyboard = structuredClone(solarEclipseStoryboard);
+    storyboard.video.targetDurationSeconds = 45;
+    storyboard.scenes[0]!.durationEstimateSeconds = 20;
+    expect(storyboardSchema.safeParse(storyboard).success).toBe(true);
+  });
 });

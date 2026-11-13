@@ -61,8 +61,25 @@ export const updateProjectRequestSchema = z
     },
   );
 
+export const approveProjectVersionRequestSchema = z
+  .object({
+    contentHash: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+    confirmation: z.literal("APPROVE"),
+  })
+  .strict();
+
+export const makeProjectVersionCurrentRequestSchema = z
+  .object({ confirmation: z.literal("MAKE_CURRENT") })
+  .strict();
+
 export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
 export type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>;
+export type ApproveProjectVersionRequest = z.infer<
+  typeof approveProjectVersionRequestSchema
+>;
+export type MakeProjectVersionCurrentRequest = z.infer<
+  typeof makeProjectVersionCurrentRequestSchema
+>;
 export type ProjectInputMode = z.infer<typeof projectInputModeSchema>;
 export type ProjectStatus = z.infer<typeof projectStatusSchema>;
 export type VideoDefaults = z.infer<typeof videoDefaultsSchema>;

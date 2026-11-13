@@ -8,7 +8,7 @@ if (existsSync(workspaceEnvironment)) {
 }
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@motionly/shared", "@motionly/video"],
+  transpilePackages: ["@motionly/ai", "@motionly/shared", "@motionly/video"],
 };
 
 export default nextConfig;

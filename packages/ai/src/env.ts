@@ -10,7 +10,8 @@ const requireEnvironmentVariable = (name: string): string => {
 
 export const getGeminiConfig = () => ({
   apiKey: requireEnvironmentVariable("GEMINI_API_KEY"),
-  model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+  model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
+  fallbackModel: process.env.GEMINI_FALLBACK_MODEL || "gemini-3.5-flash",
 });
 
 export const getElevenLabsConfig = () => ({

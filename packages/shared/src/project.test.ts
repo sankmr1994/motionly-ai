@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  approveProjectVersionRequestSchema,
   createProjectRequestSchema,
   updateProjectRequestSchema,
 } from "./project";
@@ -54,5 +55,22 @@ describe("project contract", () => {
       updateProjectRequestSchema.safeParse({ archived: true }).success,
     ).toBe(true);
     expect(updateProjectRequestSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe("project approval contract", () => {
+  it("requires explicit confirmation and the reviewed SHA-256 hash", () => {
+    expect(
+      approveProjectVersionRequestSchema.safeParse({
+        contentHash: `sha256:${"a".repeat(64)}`,
+        confirmation: "APPROVE",
+      }).success,
+    ).toBe(true);
+    expect(
+      approveProjectVersionRequestSchema.safeParse({
+        contentHash: "sha256:wrong",
+        confirmation: "APPROVE",
+      }).success,
+    ).toBe(false);
   });
 });

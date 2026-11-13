@@ -76,7 +76,7 @@ All three use the same 720 × 1280, 30 FPS, 900-frame composition contract and t
 | Validation       | Zod                     | 4.6.7                           | Request, storyboard, and render-prop validation |
 | Video            | Remotion                | 4.0.541                         | Player, frame evaluation, and H.264 rendering   |
 | AI SDK           | `@google/genai`         | 2.32.0                          | Gemini structured-output calls                  |
-| Storyboard model | Gemini                  | `gemini-3.8-flash`              | Script/storyboard generation                    |
+| Storyboard model | Gemini                  | `gemini-3.5-flash-lite`         | Primary low-latency storyboard generation       |
 | Narration model  | ElevenLabs              | `eleven_multilingual_v2`        | Timestamped text-to-speech                      |
 | Voice            | ElevenLabs Voice Design | `Motionly Indian Educator`      | Default English narration voice                 |
 | Tests            | Vitest                  | 5.1.0                           | Contract and timeline tests                     |
@@ -102,13 +102,13 @@ These are the implementation baseline verified against the npm registry on 2026-
 
 ### 5.3 Model policy
 
-| Task                      | Primary                  | Fallback                                      | Output contract                                             |
-| ------------------------- | ------------------------ | --------------------------------------------- | ----------------------------------------------------------- |
-| Topic → script/storyboard | `gemini-3.8-flash`       | Approved deterministic fixture or retry later | JSON matching the Zod storyboard schema                     |
-| User script → storyboard  | `gemini-3.8-flash`       | Manual template selection                     | Script text is immutable; only storyboard data is generated |
-| Narration                 | `eleven_multilingual_v2` | User retries after a provider failure         | MP3 plus character timestamps                               |
-| Caption generation        | Local deterministic code | None required                                 | Five-word cues with exact start/end frames                  |
-| Video rendering           | Remotion                 | Retry on a clean worker                       | H.264 MP4 from registered components only                   |
+| Task                      | Primary                  | Fallback                              | Output contract                                             |
+| ------------------------- | ------------------------ | ------------------------------------- | ----------------------------------------------------------- |
+| Topic → script/storyboard | `gemini-3.5-flash-lite`  | `gemini-3.5-flash` on 429/503/504     | JSON matching the Zod storyboard schema                     |
+| User script → storyboard  | `gemini-3.5-flash-lite`  | `gemini-3.5-flash` on 429/503/504     | Script text is immutable; only storyboard data is generated |
+| Narration                 | `eleven_multilingual_v2` | User retries after a provider failure | MP3 plus character timestamps                               |
+| Caption generation        | Local deterministic code | None required                         | Five-word cues with exact start/end frames                  |
+| Video rendering           | Remotion                 | Retry on a clean worker               | H.264 MP4 from registered components only                   |
 
 Model identifiers remain environment-configurable, but every generation records the exact model, settings, schema version, and template-registry version used.
 

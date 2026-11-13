@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@better-auth/mongo-adapter": "1.7.18",
+    "@motionly/ai": "workspace:*",
     "@motionly/config": "workspace:*",
     "@motionly/db": "workspace:*",
     "@motionly/observability": "workspace:*",

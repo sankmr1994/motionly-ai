@@ -29,7 +29,7 @@ function getDatabaseResources(): { client: MongoClient; database: Db } {
   configureDnsServers(config.dnsServers);
   client ??= new MongoClient(config.uri, {
     appName: "motionly-ai",
-    serverSelectionTimeoutMS: 3_000,
+    serverSelectionTimeoutMS: 15_000,
   });
   database ??= client.db(config.databaseName);
   return { client, database };
@@ -45,8 +45,16 @@ export function getDatabaseHandle(): Db {
 
 export async function getDatabase(): Promise<Db> {
   const resources = getDatabaseResources();
-  await resources.client.connect();
-  return resources.database;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await resources.client.connect();
+      return resources.database;
+    } catch (error) {
+      if (attempt === 3) throw error;
+      await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+    }
+  }
+  throw new Error("Database connection failed after retries.");
 }
 
 export async function checkDatabaseConnection(): Promise<
