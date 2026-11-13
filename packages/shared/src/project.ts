@@ -72,6 +72,33 @@ export const makeProjectVersionCurrentRequestSchema = z
   .object({ confirmation: z.literal("MAKE_CURRENT") })
   .strict();
 
+export const editedStoryboardSceneSchema = z
+  .object({
+    id: z.string().regex(/^scene_[0-9]{2}$/),
+    title: z.string().trim().min(1).max(60),
+    narration: z.string().trim().min(1).max(1_000),
+  })
+  .strict();
+
+export const editProjectStoryboardRequestSchema = z
+  .object({
+    basedOnVersionId: z.string().regex(/^[a-f0-9]{24}$/),
+    expectedContentHash: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+    scenes: z.array(editedStoryboardSceneSchema).min(1).max(10),
+    confirmation: z.literal("SAVE_EDITS"),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const ids = value.scenes.map((scene) => scene.id);
+    if (new Set(ids).size !== ids.length) {
+      context.addIssue({
+        code: "custom",
+        path: ["scenes"],
+        message: "Edited scene IDs must be unique.",
+      });
+    }
+  });
+
 export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>;
 export type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>;
 export type ApproveProjectVersionRequest = z.infer<
@@ -79,6 +106,9 @@ export type ApproveProjectVersionRequest = z.infer<
 >;
 export type MakeProjectVersionCurrentRequest = z.infer<
   typeof makeProjectVersionCurrentRequestSchema
+>;
+export type EditProjectStoryboardRequest = z.infer<
+  typeof editProjectStoryboardRequestSchema
 >;
 export type ProjectInputMode = z.infer<typeof projectInputModeSchema>;
 export type ProjectStatus = z.infer<typeof projectStatusSchema>;

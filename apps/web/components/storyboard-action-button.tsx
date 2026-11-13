@@ -19,6 +19,7 @@ export function StoryboardActionButton({
   variant = "primary",
   label,
   revision,
+  nextRevision,
 }: {
   mode: StoryboardActionMode;
   projectId: string;
@@ -27,6 +28,7 @@ export function StoryboardActionButton({
   variant?: "primary" | "secondary";
   label?: string;
   revision?: number;
+  nextRevision?: number;
 }) {
   const [confirming, setConfirming] = useState(false);
   const action = storyboardWorkflowAction.bind(
@@ -138,7 +140,7 @@ export function StoryboardActionButton({
                         </p>
                       </div>
                       <div>
-                        <span>{revision ? revision + 1 : "New"}</span>
+                        <span>{nextRevision ?? "New"}</span>
                         <p>
                           <strong>
                             A new revision becomes your review copy
@@ -179,7 +181,7 @@ export function StoryboardActionButton({
                         : `Approve Revision ${revision}`
                       : pending
                         ? "Creating new revision…"
-                        : `Create Revision ${revision ? revision + 1 : ""}`.trim()}
+                        : `Create Revision ${nextRevision ?? ""}`.trim()}
                   </button>
                 </footer>
               </form>

@@ -552,22 +552,26 @@ POST /api/v1/projects/:projectId/versions
 ```json
 {
   "basedOnVersionId": "690f16063a3db08ddad6e226",
-  "script": "Reviewed narration...",
-  "storyboard": {
-    "schemaVersion": "0.1",
-    "project": {},
-    "video": {},
-    "scenes": []
-  }
+  "expectedContentHash": "sha256:...",
+  "confirmation": "SAVE_EDITS",
+  "scenes": [
+    {
+      "id": "scene_01",
+      "title": "A clearer opening",
+      "narration": "Reviewed narration for this scene."
+    }
+  ]
 }
 ```
 
 Rules:
 
-- `basedOnVersionId` must be the current version unless the client explicitly resolves a conflict.
-- In script mode, narration must preserve the approved source script according to normalization rules.
-- The storyboard is validated before persistence.
+- `basedOnVersionId` and `expectedContentHash` must match the current `REVIEW_READY` version.
+- V1 editing accepts every current scene exactly once and allows only title and narration changes. Templates, objects, animation actions, timing, ordering, and technical configuration are copied unchanged.
+- Narration word count must fit each locked scene duration at the configured safe speaking-rate limit.
+- The server reconstructs and validates the complete storyboard before persistence.
 - A new sequential revision is created; the base revision remains unchanged.
+- A no-op edit is rejected with `409 Conflict`.
 
 Response: `201 Created`.
 

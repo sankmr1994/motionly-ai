@@ -264,6 +264,10 @@ Immutable snapshots of user-reviewed content and render configuration.
     generatedAt: ISODate("2026-11-09T05:35:00.000Z"),
     usedFallback: false
   },
+  editingProvenance: {
+    editedBy: "better-auth-user-id",
+    editedAt: ISODate("2026-11-13T08:30:00.000Z")
+  },
   validation: {
     valid: true,
     warnings: [],
@@ -293,12 +297,14 @@ db.projectVersions.createIndex({ "approval.approvedAt": 1 }, { sparse: true });
 
 - Draft versions may be approved once, using a compare-and-set on `approval.status` and `contentHash`.
 - Content fields (`script`, `storyboard`, source, model configuration) are never updated after insert.
-- Editing creates a new revision.
+- Editing titles or narration creates a new revision with `basedOnVersionId` and `editingProvenance`; the base version remains unchanged.
 - Selecting an earlier storyboard changes only `projects.currentVersionId`; it never copies or mutates a `projectVersions` document.
 - Approval metadata may be added atomically but never removed or changed.
 - Rendering always references a specific version ID, never "latest".
 
 Revision selection runs in a transaction: validate the owner-scoped `REVIEW_READY` project and target version, then compare-and-set `projects.currentVersionId`. `revisionCounter` remains unchanged, so the next regeneration receives the next unused revision number even when its base is an older version.
+
+Storyboard editing also runs in a transaction. The server compares the current version ID and content hash, applies only allowlisted text fields to the immutable source storyboard, validates schema and narration timing, increments `revisionCounter`, inserts the edited version, and advances `currentVersionId`. Stale, invalid, cross-owner, approved, and no-op edits do not create a revision.
 
 ## 8. `planningJobs`
 

@@ -2,6 +2,7 @@ import { getProjectPlan, listProjectStoryboardRevisions } from "@motionly/db";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StoryboardActionButton } from "../../../../../components/storyboard-action-button";
+import { StoryboardEditor } from "../../../../../components/storyboard-editor";
 import { StoryboardRevisionHistory } from "../../../../../components/storyboard-revision-history";
 import { StudioIcon } from "../../../../../components/studio-icon";
 import { StudioShell } from "../../../../../components/studio-shell";
@@ -19,11 +20,15 @@ export default async function StoryboardReviewPage({
   searchParams,
 }: {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{ approved?: string; selected?: string }>;
+  searchParams: Promise<{
+    approved?: string;
+    selected?: string;
+    edited?: string;
+  }>;
 }) {
   const { session } = await requireStudioSession();
   const { projectId } = await params;
-  const { approved, selected } = await searchParams;
+  const { approved, selected, edited } = await searchParams;
   const [plan, revisions] = await Promise.all([
     getProjectPlan(session.user.id, projectId),
     listProjectStoryboardRevisions(session.user.id, projectId),
@@ -56,6 +61,15 @@ export default async function StoryboardReviewPage({
             <p>
               The selected revision is now current. No duplicate was created.
             </p>
+          </div>
+        </div>
+      ) : null}
+      {edited === "1" ? (
+        <div className="studio-success" role="status">
+          <span>✎</span>
+          <div>
+            <strong>Edited revision created</strong>
+            <p>Review every scene before approving this new revision.</p>
           </div>
         </div>
       ) : null}
@@ -170,12 +184,22 @@ export default async function StoryboardReviewPage({
                 versionId={plan.versionId}
                 contentHash={plan.contentHash}
                 revision={plan.revision}
+                nextRevision={plan.nextRevision}
+              />
+              <StoryboardEditor
+                projectId={projectId}
+                versionId={plan.versionId}
+                contentHash={plan.contentHash}
+                revision={plan.revision}
+                nextRevision={plan.nextRevision}
+                scenes={plan.storyboard.scenes}
               />
               <StoryboardActionButton
                 mode="regenerate"
                 projectId={projectId}
                 variant="secondary"
                 revision={plan.revision}
+                nextRevision={plan.nextRevision}
               />
               <small>
                 Approval locks this revision. Regeneration creates a new one.

@@ -115,12 +115,13 @@ Phase 4A idea-to-storyboard vertical slice implemented on **2026-11-12**:
 - Added a combined storyboard review screen with scene narration, visual objects, motion actions, plan summary, factual-verification warning, regeneration, and explicit approval.
 - Added storyboard revision history and safe current-version selection. A compact sidebar trigger opens a responsive history drawer with five newest-first revisions per page; selecting an older storyboard changes only the current-version pointer, creates no duplicate, preserves every version, and requires confirmation. Regeneration alone creates the next immutable revision, and approved projects remain locked.
 - Added a final approval confirmation dialog and server-side confirmation guard so a single accidental click cannot lock a storyboard revision.
+- Added the first Phase 4B editing slice: users can edit scene titles and narration, review a deterministic change summary, and save an owner-scoped immutable revision. Server validation protects scene identity, schema, locked timing and render configuration, narration word limits, content hashes, and concurrent changes.
 - Added transactional approval that locks the reviewed content hash and moves the project to `APPROVED`; narration and video rendering remain intentionally out of scope.
 - Added authenticated planning and approval API routes plus migration `002-planning-job-indexes`.
-- Automated verification passed for the revision-history addition: affected package type checks and all 18 automated tests. The earlier Phase 4A baseline also passed formatting, diff validation, the optimized Next.js production build, and the configured Atlas migration runner.
+- Automated verification passed through the first Phase 4B editing slice: all workspace type checks, all 23 automated tests, formatting, diff validation, and the optimized Next.js production build. The configured Atlas migration runner passed in the earlier Phase 4A baseline.
 - Live Gemini and browser verification passed on **2026-11-12**: `gemini-3.5-flash-lite` generated a valid five-scene, 30-second compound-interest plan, MongoDB saved immutable Revision 2, and the application navigated to the complete storyboard review screen. The revision was intentionally left unapproved for product-owner review.
 - Hardened provider/database reliability with a 90-second single-attempt Gemini deadline, one-minute interrupted-job recovery, safe failure cleanup, transient MongoDB retries, and a 15-second Atlas cold-start selection window.
-- Storyboard text editing and source-reference retrieval remain deferred to Phase 4B.
+- Visual-direction editing and source-reference retrieval remain deferred to the next Phase 4B slices.
 
 ## 5. Existing validated video POCs
 

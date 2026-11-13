@@ -2,8 +2,10 @@
 
 import {
   approveProjectPlan,
+  createEditedProjectStoryboardRevision,
   makeProjectStoryboardRevisionCurrent,
 } from "@motionly/db";
+import { editProjectStoryboardRequestSchema } from "@motionly/shared";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -12,6 +14,53 @@ import { planProjectForOwner } from "../../../lib/project-planning";
 
 export type StoryboardActionState = { message?: string };
 export type StoryboardActionMode = "plan" | "regenerate" | "approve";
+
+export async function saveStoryboardEditsAction(
+  projectId: string,
+  _previousState: StoryboardActionState,
+  formData: FormData,
+): Promise<StoryboardActionState> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.emailVerified) redirect("/sign-in");
+  const sceneIds = formData.getAll("sceneId");
+  const titles = formData.getAll("title");
+  const narrations = formData.getAll("narration");
+  const parsed = editProjectStoryboardRequestSchema.safeParse({
+    basedOnVersionId: formData.get("basedOnVersionId"),
+    expectedContentHash: formData.get("expectedContentHash"),
+    confirmation: formData.get("confirmation"),
+    scenes: sceneIds.map((id, index) => ({
+      id,
+      title: titles[index],
+      narration: narrations[index],
+    })),
+  });
+  if (!parsed.success) {
+    return {
+      message:
+        parsed.error.issues[0]?.message ?? "Review the edited scene fields.",
+    };
+  }
+  const result = await createEditedProjectStoryboardRevision(
+    session.user.id,
+    projectId,
+    parsed.data,
+  );
+  if (!result.ok) {
+    const messages = {
+      not_found: "This storyboard could not be found.",
+      not_ready: "Only the current unapproved storyboard can be edited.",
+      conflict:
+        "This storyboard changed while you were editing. Refresh and try again.",
+      no_changes: "Change at least one scene before saving.",
+      invalid_edits: result.message ?? "The edited storyboard is not valid.",
+    } as const;
+    return { message: messages[result.reason] };
+  }
+  revalidatePath("/dashboard");
+  revalidatePath(`/dashboard/projects/${projectId}/storyboard`);
+  redirect(`/dashboard/projects/${projectId}/storyboard?edited=1`);
+}
 
 export async function makeStoryboardRevisionCurrentAction(
   projectId: string,

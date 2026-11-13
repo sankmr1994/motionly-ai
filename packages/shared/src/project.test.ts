@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   approveProjectVersionRequestSchema,
   createProjectRequestSchema,
+  editProjectStoryboardRequestSchema,
   updateProjectRequestSchema,
 } from "./project";
 
@@ -70,6 +71,42 @@ describe("project approval contract", () => {
       approveProjectVersionRequestSchema.safeParse({
         contentHash: "sha256:wrong",
         confirmation: "APPROVE",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("storyboard edit contract", () => {
+  const validEdit = {
+    basedOnVersionId: "a".repeat(24),
+    expectedContentHash: `sha256:${"b".repeat(64)}`,
+    confirmation: "SAVE_EDITS",
+    scenes: [
+      {
+        id: "scene_01",
+        title: "A clearer opening",
+        narration: "This is the revised narration.",
+      },
+    ],
+  };
+
+  it("accepts explicitly confirmed title and narration edits", () => {
+    expect(
+      editProjectStoryboardRequestSchema.safeParse(validEdit).success,
+    ).toBe(true);
+  });
+
+  it("rejects duplicate scenes and missing confirmation", () => {
+    expect(
+      editProjectStoryboardRequestSchema.safeParse({
+        ...validEdit,
+        scenes: [...validEdit.scenes, validEdit.scenes[0]],
+      }).success,
+    ).toBe(false);
+    expect(
+      editProjectStoryboardRequestSchema.safeParse({
+        ...validEdit,
+        confirmation: undefined,
       }).success,
     ).toBe(false);
   });

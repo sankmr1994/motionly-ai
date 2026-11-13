@@ -1,11 +1,12 @@
 import type {
   CreateProjectRequest,
+  EditProjectStoryboardRequest,
   ProjectInputMode,
   ProjectStatus,
   Storyboard,
   VideoDefaults,
 } from "@motionly/shared";
-import { storyboardSchema } from "@motionly/shared";
+import { getNarrationTimingIssues, storyboardSchema } from "@motionly/shared";
 import { createHash } from "node:crypto";
 import {
   ObjectId,
@@ -59,6 +60,10 @@ type ProjectVersionDocument = {
     valid: true;
     warnings: string[];
     totalFrames: number;
+  };
+  editingProvenance?: {
+    editedBy: string;
+    editedAt: Date;
   };
   contentHash: string;
   approval: {
@@ -121,6 +126,7 @@ export type ProjectPlan = {
   project: ProjectSummary;
   versionId: string;
   revision: number;
+  nextRevision: number;
   script: string;
   storyboard: Storyboard;
   contentHash: string;
@@ -183,6 +189,85 @@ export function getRevisionSelectionReadiness(
   if (status !== "REVIEW_READY") return "not_ready" as const;
   if (isCurrentVersion) return "current" as const;
   return "ready" as const;
+}
+
+export function compileStoryboardTextEdits(
+  storyboard: Storyboard,
+  edits: EditProjectStoryboardRequest["scenes"],
+):
+  | {
+      ok: true;
+      storyboard: Storyboard;
+      script: string;
+      changedScenes: number;
+      titleChanges: number;
+      narrationChanges: number;
+    }
+  | { ok: false; reason: "scene_mismatch" | "timing"; message: string } {
+  const editsById = new Map(edits.map((scene) => [scene.id, scene]));
+  if (
+    editsById.size !== storyboard.scenes.length ||
+    storyboard.scenes.some((scene) => !editsById.has(scene.id))
+  ) {
+    return {
+      ok: false,
+      reason: "scene_mismatch",
+      message: "Every current storyboard scene must be included exactly once.",
+    };
+  }
+
+  let titleChanges = 0;
+  let narrationChanges = 0;
+  const narrationChangedIds = new Set<string>();
+  const nextStoryboard = storyboardSchema.parse({
+    ...storyboard,
+    scenes: storyboard.scenes.map((scene, index) => {
+      const edit = editsById.get(scene.id)!;
+      const title = edit.title.trim();
+      const narration = edit.narration.trim();
+      const titleChanged = (scene.title ?? `Scene ${index + 1}`) !== title;
+      if (titleChanged) titleChanges += 1;
+      if (scene.narration !== narration) {
+        narrationChanges += 1;
+        narrationChangedIds.add(scene.id);
+      }
+      return {
+        ...scene,
+        ...(scene.title !== undefined || titleChanged ? { title } : {}),
+        narration,
+      };
+    }),
+  });
+  const timingIssues = getNarrationTimingIssues(nextStoryboard).filter(
+    (issue) => narrationChangedIds.has(issue.sceneId),
+  );
+  if (timingIssues.length) {
+    const first = timingIssues[0]!;
+    return {
+      ok: false,
+      reason: "timing",
+      message: `${first.sceneId} has ${first.wordCount} narration words; its limit is ${first.maximumWords}.`,
+    };
+  }
+  return {
+    ok: true,
+    storyboard: nextStoryboard,
+    script: nextStoryboard.scenes.map((scene) => scene.narration).join("\n\n"),
+    changedScenes: new Set(
+      nextStoryboard.scenes
+        .filter((scene, index) => {
+          const original = storyboard.scenes[index]!;
+          return (
+            (original.title ?? `Scene ${index + 1}`) !==
+              (scene.title ?? `Scene ${index + 1}`) ||
+            original.narration !== scene.narration
+          );
+        })
+        .map((scene) => scene.id),
+    ).size,
+    titleChanges,
+    narrationChanges,
+  };
 }
 
 function projectCollection(
@@ -857,6 +942,7 @@ export async function completeProjectPlanning(
         project: toSummary(projectUpdate),
         versionId: versionId.toHexString(),
         revision,
+        nextRevision: revision + 1,
         script,
         storyboard,
         contentHash: plannedHash,
@@ -901,6 +987,7 @@ export async function getProjectPlan(
     project: toSummary(project),
     versionId: version._id.toHexString(),
     revision: version.revision,
+    nextRevision: project.revisionCounter + 1,
     script: version.script,
     storyboard: parsed.data,
     contentHash: version.contentHash,
@@ -1031,6 +1118,163 @@ export async function makeProjectStoryboardRevisionCurrent(
         { session },
       );
       result = projectUpdate.modifiedCount ? "selected" : "conflict";
+    });
+    return result;
+  } finally {
+    await session.endSession();
+  }
+}
+
+export type EditProjectStoryboardResult =
+  | { ok: true; versionId: string; revision: number }
+  | {
+      ok: false;
+      reason:
+        "not_found" | "not_ready" | "conflict" | "no_changes" | "invalid_edits";
+      message?: string;
+    };
+
+export async function createEditedProjectStoryboardRevision(
+  ownerId: string,
+  projectId: string,
+  input: EditProjectStoryboardRequest,
+): Promise<EditProjectStoryboardResult> {
+  const id = toObjectId(projectId);
+  const basedOnVersionId = toObjectId(input.basedOnVersionId);
+  if (!id || !basedOnVersionId) {
+    return { ok: false, reason: "not_found" };
+  }
+  const database = await getDatabase();
+  const client = getDatabaseClient();
+  const session = client.startSession();
+  try {
+    let result: EditProjectStoryboardResult = {
+      ok: false,
+      reason: "not_found",
+    };
+    await session.withTransaction(async () => {
+      const project = await projectCollection(database).findOne(
+        { _id: id, ownerId },
+        { session },
+      );
+      if (!project) return;
+      if (
+        project.status !== "REVIEW_READY" ||
+        !project.currentVersionId.equals(basedOnVersionId)
+      ) {
+        result = { ok: false, reason: "not_ready" };
+        return;
+      }
+      const sourceVersion = await database
+        .collection<ProjectVersionDocument>("projectVersions")
+        .findOne(
+          {
+            _id: basedOnVersionId,
+            projectId: id,
+            ownerId,
+            contentHash: input.expectedContentHash,
+            "approval.status": "REVIEW_READY",
+          },
+          { session },
+        );
+      if (
+        !sourceVersion?.storyboard ||
+        !sourceVersion.script ||
+        !sourceVersion.planningProvenance
+      ) {
+        result = { ok: false, reason: "conflict" };
+        return;
+      }
+      const parsedSource = storyboardSchema.safeParse(sourceVersion.storyboard);
+      if (!parsedSource.success) {
+        result = { ok: false, reason: "conflict" };
+        return;
+      }
+      const compiled = compileStoryboardTextEdits(
+        parsedSource.data,
+        input.scenes,
+      );
+      if (!compiled.ok) {
+        result = {
+          ok: false,
+          reason: "invalid_edits",
+          message: compiled.message,
+        };
+        return;
+      }
+      if (!compiled.changedScenes) {
+        result = { ok: false, reason: "no_changes" };
+        return;
+      }
+
+      const now = new Date();
+      const versionId = new ObjectId();
+      const revision = project.revisionCounter + 1;
+      const editedHash = hashValue(
+        JSON.stringify({
+          source: sourceVersion.source,
+          script: compiled.script,
+          storyboard: compiled.storyboard,
+          videoDefaults: sourceVersion.videoDefaults,
+        }),
+      );
+      const projectUpdate = await projectCollection(database).updateOne(
+        {
+          _id: id,
+          ownerId,
+          status: "REVIEW_READY",
+          currentVersionId: basedOnVersionId,
+          revisionCounter: project.revisionCounter,
+        },
+        {
+          $set: {
+            currentVersionId: versionId,
+            revisionCounter: revision,
+            updatedAt: now,
+          },
+          $inc: { recordVersion: 1 },
+        },
+        { session },
+      );
+      if (!projectUpdate.modifiedCount) {
+        result = { ok: false, reason: "conflict" };
+        return;
+      }
+      await database
+        .collection<ProjectVersionDocument>("projectVersions")
+        .insertOne(
+          {
+            _id: versionId,
+            ownerId,
+            projectId: id,
+            revision,
+            basedOnVersionId,
+            source: sourceVersion.source,
+            videoDefaults: sourceVersion.videoDefaults,
+            script: compiled.script,
+            storyboard: compiled.storyboard,
+            templateRegistryVersion: sourceVersion.templateRegistryVersion,
+            planningProvenance: sourceVersion.planningProvenance,
+            editingProvenance: { editedBy: ownerId, editedAt: now },
+            validation: {
+              valid: true,
+              warnings: sourceVersion.validation?.warnings ?? [],
+              totalFrames:
+                compiled.storyboard.video.targetDurationSeconds *
+                compiled.storyboard.video.fps,
+            },
+            contentHash: editedHash,
+            approval: { status: "REVIEW_READY" },
+            createdAt: now,
+            schemaVersion: "1",
+          },
+          { session },
+        );
+      result = {
+        ok: true,
+        versionId: versionId.toHexString(),
+        revision,
+      };
     });
     return result;
   } finally {

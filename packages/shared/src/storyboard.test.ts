@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { solarEclipseStoryboard } from "./fixtures/solar-eclipse";
-import { compileTimeline, storyboardSchema } from "./storyboard";
+import {
+  compileTimeline,
+  countNarrationWords,
+  getNarrationTimingIssues,
+  getNarrationWordLimit,
+  storyboardSchema,
+} from "./storyboard";
 
 describe("storyboard contract", () => {
   it("validates the approved solar eclipse fixture", () => {
@@ -26,5 +32,20 @@ describe("storyboard contract", () => {
     storyboard.video.targetDurationSeconds = 45;
     storyboard.scenes[0]!.durationEstimateSeconds = 20;
     expect(storyboardSchema.safeParse(storyboard).success).toBe(true);
+  });
+
+  it("detects narration that cannot fit its scene duration", () => {
+    const storyboard = structuredClone(solarEclipseStoryboard);
+    const duration = storyboard.scenes[0]!.durationEstimateSeconds;
+    storyboard.scenes[0]!.narration = Array.from(
+      { length: getNarrationWordLimit(duration) + 1 },
+      () => "word",
+    ).join(" ");
+    expect(getNarrationTimingIssues(storyboard)).toContainEqual({
+      sceneId: "scene_01",
+      wordCount: getNarrationWordLimit(duration) + 1,
+      maximumWords: getNarrationWordLimit(duration),
+    });
+    expect(countNarrationWords("  one   two three  ")).toBe(3);
   });
 });

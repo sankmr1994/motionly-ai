@@ -156,6 +156,26 @@ export type StoryboardScene = z.infer<typeof sceneSchema>;
 export type Storyboard = z.infer<typeof storyboardSchema>;
 export type StoryboardTemplate = StoryboardScene["template"];
 
+export const narrationWordsPerSecond = 3;
+
+export function getNarrationWordLimit(durationSeconds: number) {
+  return Math.max(6, Math.floor(durationSeconds * narrationWordsPerSecond));
+}
+
+export function countNarrationWords(narration: string) {
+  return narration.trim().split(/\s+/).filter(Boolean).length;
+}
+
+export function getNarrationTimingIssues(storyboard: Storyboard) {
+  return storyboard.scenes.flatMap((scene) => {
+    const wordCount = countNarrationWords(scene.narration);
+    const maximumWords = getNarrationWordLimit(scene.durationEstimateSeconds);
+    return wordCount > maximumWords
+      ? [{ sceneId: scene.id, wordCount, maximumWords }]
+      : [];
+  });
+}
+
 export interface TimelineScene extends StoryboardScene {
   fromFrame: number;
   durationInFrames: number;
