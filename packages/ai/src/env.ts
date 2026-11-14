@@ -18,4 +18,5 @@ export const getElevenLabsConfig = () => ({
   apiKey: requireEnvironmentVariable("ELEVENLABS_API_KEY"),
   voiceId: requireEnvironmentVariable("ELEVENLABS_VOICE_ID"),
   modelId: process.env.ELEVENLABS_MODEL_ID ?? "eleven_multilingual_v2",
+  voiceName: process.env.ELEVENLABS_VOICE_NAME ?? "Motionly Indian Educator",
 });

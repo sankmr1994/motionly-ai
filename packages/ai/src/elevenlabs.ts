@@ -18,6 +18,21 @@ interface ElevenLabsTimestampResponse {
   normalized_alignment: SpeechAlignment | null;
 }
 
+export class SpeechGenerationError extends Error {
+  constructor(
+    public readonly status?: number,
+    options?: ErrorOptions,
+  ) {
+    super("ELEVENLABS_SPEECH_GENERATION_FAILED", options);
+    this.name = "SpeechGenerationError";
+  }
+}
+
+export function getSpeechDurationSeconds(speech: TimestampedSpeech) {
+  const alignment = speech.normalizedAlignment ?? speech.alignment;
+  return alignment?.character_end_times_seconds.at(-1) ?? 0;
+}
+
 export const generateTimestampedSpeech = async (
   text: string,
   options: { speed?: number } = {},
@@ -27,6 +42,7 @@ export const generateTimestampedSpeech = async (
     `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}/with-timestamps?output_format=mp3_44100_128`,
     {
       method: "POST",
+      signal: AbortSignal.timeout(60_000),
       headers: {
         "Content-Type": "application/json",
         "xi-api-key": apiKey,
@@ -44,16 +60,17 @@ export const generateTimestampedSpeech = async (
   );
 
   if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(
-      `ElevenLabs request failed (${response.status}): ${detail}`,
-    );
+    throw new SpeechGenerationError(response.status);
   }
 
   const payload = (await response.json()) as ElevenLabsTimestampResponse;
-  return {
+  const speech = {
     audio: Uint8Array.from(Buffer.from(payload.audio_base64, "base64")),
     alignment: payload.alignment,
     normalizedAlignment: payload.normalized_alignment,
   };
+  if (!speech.audio.length || getSpeechDurationSeconds(speech) <= 0) {
+    throw new SpeechGenerationError();
+  }
+  return speech;
 };

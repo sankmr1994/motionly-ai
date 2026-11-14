@@ -3,8 +3,8 @@
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
 Last updated: **2026-11-14**
-Current implementation phase: **Phase 4 — Idea-to-storyboard workflow complete**
-Next planned phase: **Phase 5A — Narration generation and audio preview**
+Current implementation phase: **Phase 5A — Narration generation and audio preview completed and verified locally**
+Next planned phase: **Phase 5B — Caption timing and narration-fit review**
 
 ## 1. Product summary
 
@@ -23,7 +23,7 @@ V1 is creator-first and Instagram-first. Billing, subscriptions, payments, and i
 | Phase 2                  | Email/password authentication, verification, recovery, and onboarding            | Core flow implemented; live recovery delivery check remains                                     |
 | Phase 3                  | Dashboard and project management                                                 | Complete and product-owner approved                                                             |
 | Phase 4                  | Idea-to-storyboard workflow                                                      | Complete: generation, references, revision history, editing, review, regeneration, and approval |
-| Phase 5                  | Production video-generation pipeline                                             | POC complete; hosted asynchronous pipeline not implemented                                      |
+| Phase 5                  | Production video-generation pipeline                                             | Phase 5A narration and private audio review complete locally; captions/rendering pending        |
 | Phase 6                  | Completed-video experience                                                       | Designed; not implemented                                                                       |
 | Phase 7                  | Manual Instagram publishing and one-time scheduling                              | Designed; not implemented                                                                       |
 | Phase 8                  | Recurring content generation and publishing                                      | Designed; not implemented                                                                       |
@@ -129,6 +129,18 @@ Phase 4A idea-to-storyboard vertical slice implemented on **2026-11-12**:
 - Hardened provider/database reliability with a 90-second single-attempt Gemini deadline, one-minute interrupted-job recovery, safe failure cleanup, transient MongoDB retries, and a 15-second Atlas cold-start selection window.
 - Adding/removing visual objects and changing templates or raw motion commands remain intentionally deferred beyond the safe V1 storyboard editor.
 
+Phase 5A narration vertical slice implemented on **2026-11-14**:
+
+- Added owner-scoped durable `narrationJobs` tied to the exact approved project version and approved content hash. Duplicate completed requests reuse the existing job, active requests are blocked, interrupted jobs become retryable, and provider failures never modify the approved storyboard.
+- Added scene-by-scene ElevenLabs narration using the configured Motionly Indian Educator voice and `eleven_multilingual_v2`, with bounded provider requests, retained character-level timestamp alignment, timestamp-derived audio duration, safe errors, progress persistence, and retry handling.
+- Added private local development media storage outside MongoDB and outside the public Next.js directory. Authenticated, owner-scoped audio routes stream MP3 bytes with range support; raw filesystem paths and provider credentials are never exposed.
+- Added a Porcelain Cobalt narration studio for approved projects with generation/progress/failure states, per-scene native audio controls, a sequential full-narration player, voice/model metadata, and a direct handoff from the approved storyboard.
+- Promoted the approved storyboard's `Continue to narration` action into the responsive sticky command bar so the next workflow step is immediately visible and remains accessible while the user scrolls. The duplicate bottom-of-sidebar action was removed.
+- Added migration `003-narration-job-indexes` plus readiness and speech-metadata regression tests. The automated suite now contains 37 passing tests.
+- Local end-to-end verification passed on **2026-11-14**: an approved six-scene storyboard generated real ElevenLabs audio in about eight seconds, stored six private MP3 assets, streamed every scene through authenticated byte-range responses, displayed 47.6 seconds of combined audio, and successfully started and paused sequential full-narration playback.
+- Final Phase 5A verification passed: formatting, all workspace type checks, all 37 automated tests, diff validation, and the optimized Next.js production build.
+- The current request execution is synchronous while the durable job remains the source of truth. Inngest execution and private Cloudflare R2 storage remain required before production deployment; R2 credentials are not configured in the current local environment.
+
 ## 5. Existing validated video POCs
 
 The repository already proves the deterministic rendering approach with three narrated vertical videos:
@@ -148,7 +160,7 @@ Generated media is local-only under `out/` and `storage/` and must remain uncomm
 - Authentication: Better Auth email/password with verification, Resend delivery, and MongoDB adapter (Phase 2)
 - Metadata: MongoDB Atlas through the official driver and repository interfaces
 - Durable workflows: Inngest (Phase 5)
-- Media storage: private Cloudflare R2 with signed access (Phase 5)
+- Media storage: private local adapter for Phase 5A development; private Cloudflare R2 with signed access before production
 - Rendering: Remotion worker; Remotion Lambda is a later measured scaling option
 - AI planning: Gemini with configurable model identifier
 - Voice: ElevenLabs; configured local voice is **Motionly Indian Educator**
@@ -202,13 +214,13 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 - MongoDB Atlas is configured and connectivity-tested locally; production deployment configuration remains deferred.
 - Remotion licensing must be confirmed before commercial production launch.
 - The production Gemini model remains environment-configurable. Live account verification currently supports and uses `gemini-3.5-flash-lite`; `gemini-2.5-flash-lite` is listed by the API but rejects new users and must not be selected.
-- Better Auth and the initial project repositories are wired. Inngest workflows, R2 storage, and Sentry remain deferred to their planned phases.
+- Better Auth, project repositories, and durable local narration jobs are wired. Inngest execution, R2 storage, and Sentry remain deferred to their planned production-hardening slices.
 - Instagram publishing requires an eligible Creator or Business account and Meta app review; it is design-only today.
 - Stitch screens 01–18 are approved. The public homepage is implemented; authenticated product screens remain design-only.
 
 ## 10. Exact next action
 
-Begin Phase 5A with approved-revision narration generation: create an owner-scoped durable job, synthesize per-scene audio with ElevenLabs, store private audio assets, and provide an audio preview with retry-safe status before any Remotion video render begins.
+Begin Phase 5B with caption timing and narration-fit review: derive word-level cues from ElevenLabs alignment, compare actual scene audio against storyboard timing, surface any overrun before rendering, and let the user approve the synchronized audio/caption timeline.
 
 ## 11. Update protocol for future developers and agents
 

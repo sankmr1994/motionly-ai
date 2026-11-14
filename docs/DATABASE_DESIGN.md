@@ -363,6 +363,71 @@ db.planningJobs.createIndex(
 );
 ```
 
+## 8A. `narrationJobs` (Phase 5A)
+
+### Purpose
+
+Durable, owner-scoped progress and provenance for scene narration generated from one exact approved project version. A narration job never changes project revision history.
+
+### Implemented document shape
+
+```js
+{
+  _id: ObjectId("..."),
+  ownerId: "better-auth-user-id",
+  projectId: ObjectId("..."),
+  versionId: ObjectId("..."),
+  approvedContentHash: "sha256:...",
+  revision: 4,
+  status: "GENERATING", // GENERATING | COMPLETED | FAILED
+  progress: 45,
+  attempt: 1,
+  voice: {
+    provider: "ELEVENLABS",
+    model: "eleven_multilingual_v2",
+    displayName: "Motionly Indian Educator"
+  },
+  scenes: [
+    {
+      sceneId: "scene_01",
+      title: "A clear opening",
+      narration: "Exact approved narration text.",
+      status: "READY", // PENDING | READY
+      assetKey: "opaque-private-key",
+      mimeType: "audio/mpeg",
+      byteLength: 123456,
+      durationSeconds: 6.2,
+      alignment: {
+        characters: ["E", "x", "a"],
+        characterStartTimesSeconds: [0, 0.08, 0.14],
+        characterEndTimesSeconds: [0.08, 0.14, 0.21]
+      },
+      generatedAt: ISODate("...")
+    }
+  ],
+  error: undefined,
+  createdAt: ISODate("..."),
+  startedAt: ISODate("..."),
+  updatedAt: ISODate("..."),
+  completedAt: undefined,
+  schemaVersion: "1"
+}
+```
+
+Audio bytes remain outside MongoDB. Phase 5A uses an ignored private local-media adapter for development because R2 is not configured; the same opaque `assetKey` boundary moves to private R2 before deployment. Timestamp alignment is retained now so captions can be compiled later without repeating provider calls.
+
+### Implemented indexes
+
+```js
+db.narrationJobs.createIndex({ ownerId: 1, createdAt: -1, _id: -1 });
+db.narrationJobs.createIndex({ ownerId: 1, projectId: 1, createdAt: -1 });
+db.narrationJobs.createIndex({ ownerId: 1, versionId: 1, status: 1 });
+db.narrationJobs.createIndex(
+  { ownerId: 1, projectId: 1, versionId: 1, status: 1 },
+  { unique: true, partialFilterExpression: { status: "GENERATING" } },
+);
+```
+
 ## 9. `generationJobs`
 
 ### 9.1 Purpose

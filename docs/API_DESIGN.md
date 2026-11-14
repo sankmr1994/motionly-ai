@@ -630,6 +630,26 @@ Rules:
 
 Response: `200 OK` with `{ "data": { "status": "REVIEW_READY" } }`.
 
+### 14.8 Generate and preview approved narration
+
+Phase 5A exposes narration generation through the authenticated narration studio server action and streams completed scene audio through:
+
+```http
+GET /api/v1/projects/:projectId/narrations/:jobId/scenes/:sceneId/audio
+Range: bytes=0-
+```
+
+Rules:
+
+- The current project version must be `APPROVED`, and its approved content hash must equal the immutable version content hash.
+- One active narration job is allowed for an owner/project/version. A completed request is reused without calling ElevenLabs again.
+- Each scene is synthesized from the exact approved narration using the configured ElevenLabs voice and model.
+- Provider failures create a retryable failed job and never modify the storyboard or consume a project revision.
+- The audio endpoint rechecks session, email verification, owner, project, job, scene, and completed-job state before reading media.
+- Audio responses are private, `no-store`, support byte ranges, and never reveal storage paths, provider identifiers, or credentials.
+
+Phase 5A executes the bounded provider loop within the authenticated request while persisting durable progress after every scene. The job contract is intentionally compatible with moving execution to Inngest before production deployment.
+
 ## 15. Generation endpoints
 
 ### 15.1 Start generation

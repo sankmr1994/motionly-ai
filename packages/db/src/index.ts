@@ -79,3 +79,4 @@ export async function closeDatabaseConnection(): Promise<void> {
 }
 
 export * from "./projects";
+export * from "./narrations";

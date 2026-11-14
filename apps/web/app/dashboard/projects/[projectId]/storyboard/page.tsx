@@ -147,6 +147,19 @@ export default async function StoryboardReviewPage({
           </small>
         </div>
         <div className="storyboard-command-actions">
+          {plan.approvalStatus === "APPROVED" ? (
+            <Link
+              className="storyboard-narration-cta"
+              href={`/dashboard/projects/${projectId}/narration`}
+            >
+              <StudioIcon name="script" />
+              <span>
+                <small>Next step</small>
+                <strong>Continue to narration</strong>
+              </span>
+              <StudioIcon name="arrow" />
+            </Link>
+          ) : null}
           {plan.approvalStatus === "REVIEW_READY" ? (
             <>
               <StoryboardEditor
@@ -318,16 +331,6 @@ export default async function StoryboardReviewPage({
               />
             ) : null}
           </section>
-
-          {plan.approvalStatus === "APPROVED" ? (
-            <div className="storyboard-approved-note">
-              <span>✓</span>
-              <div>
-                <strong>Approved revision</strong>
-                <p>Ready for the future narration and rendering phase.</p>
-              </div>
-            </div>
-          ) : null}
         </aside>
       </div>
     </StudioShell>

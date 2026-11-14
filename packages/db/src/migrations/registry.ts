@@ -43,4 +43,26 @@ export const migrations: Migration[] = [
       );
     },
   },
+  {
+    id: "003-narration-job-indexes",
+    description: "Add owner, project, and active narration job indexes",
+    async up(database) {
+      await database
+        .collection("narrationJobs")
+        .createIndex({ ownerId: 1, createdAt: -1, _id: -1 });
+      await database
+        .collection("narrationJobs")
+        .createIndex({ ownerId: 1, projectId: 1, createdAt: -1 });
+      await database
+        .collection("narrationJobs")
+        .createIndex({ ownerId: 1, versionId: 1, status: 1 });
+      await database.collection("narrationJobs").createIndex(
+        { ownerId: 1, projectId: 1, versionId: 1, status: 1 },
+        {
+          unique: true,
+          partialFilterExpression: { status: "GENERATING" },
+        },
+      );
+    },
+  },
 ];
