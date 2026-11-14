@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getNarrationReadiness } from "./narrations";
+import { getCaptionTimingFit, getNarrationReadiness } from "./narrations";
 
 describe("narration generation readiness", () => {
   it("accepts only the exact approved storyboard state", () => {
@@ -14,5 +14,17 @@ describe("narration generation readiness", () => {
     expect(getNarrationReadiness("APPROVED", "REVIEW_READY")).toBe(
       "not_approved",
     );
+  });
+});
+
+describe("caption timing fit", () => {
+  it("allows a small narration tail without warning", () => {
+    const result = getCaptionTimingFit(7.9, 7.5);
+    expect(result.fit).toBe("FITS");
+    expect(result.timingDeltaSeconds).toBeCloseTo(0.4);
+  });
+
+  it("flags audio that exceeds the scene tolerance", () => {
+    expect(getCaptionTimingFit(8.1, 7.5).fit).toBe("OVERRUN");
   });
 });

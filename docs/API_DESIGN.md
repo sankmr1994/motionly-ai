@@ -650,6 +650,26 @@ Rules:
 
 Phase 5A executes the bounded provider loop within the authenticated request while persisting durable progress after every scene. The job contract is intentionally compatible with moving execution to Inngest before production deployment.
 
+### 14.9 Review and approve synchronized captions
+
+Phase 5B adds an authenticated caption review screen at:
+
+```http
+GET /dashboard/projects/:projectId/captions
+```
+
+Caption save and approval use a protected server action carrying the narration job ID, current caption version, allowlisted style, and the complete cue-ID/text set.
+
+Rules:
+
+- Captions are created only from a completed, owner-scoped narration job belonging to the approved project.
+- Phrase timing is derived deterministically from the retained ElevenLabs character alignment; Phase 5B makes no provider or AI request.
+- Clients may change only cue text and the allowlisted `MINIMAL`, `KARAOKE`, or `BOLD` style. Cue IDs, scene membership, start/end timestamps, and narration audio remain server-authoritative.
+- Caption writes use optimistic concurrency through the caption version. Stale saves return a safe conflict and never overwrite newer work.
+- Save keeps the review editable. Approve atomically saves staged text/style changes and locks the caption timeline for rendering.
+- Caption approval creates no storyboard revision and does not regenerate narration.
+- Each scene compares actual audio duration with planned storyboard duration. More than 0.5 seconds of overrun is surfaced as a review warning.
+
 ## 15. Generation endpoints
 
 ### 15.1 Start generation

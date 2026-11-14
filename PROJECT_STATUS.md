@@ -3,8 +3,8 @@
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
 Last updated: **2026-11-14**
-Current implementation phase: **Phase 5A — Narration generation and audio preview completed and verified locally**
-Next planned phase: **Phase 5B — Caption timing and narration-fit review**
+Current implementation phase: **Phase 5B — Caption timing, editing, and approval implemented locally**
+Next planned phase: **Phase 5C — Deterministic visual timeline and video rendering**
 
 ## 1. Product summary
 
@@ -23,7 +23,7 @@ V1 is creator-first and Instagram-first. Billing, subscriptions, payments, and i
 | Phase 2                  | Email/password authentication, verification, recovery, and onboarding            | Core flow implemented; live recovery delivery check remains                                     |
 | Phase 3                  | Dashboard and project management                                                 | Complete and product-owner approved                                                             |
 | Phase 4                  | Idea-to-storyboard workflow                                                      | Complete: generation, references, revision history, editing, review, regeneration, and approval |
-| Phase 5                  | Production video-generation pipeline                                             | Phase 5A narration and private audio review complete locally; captions/rendering pending        |
+| Phase 5                  | Production video-generation pipeline                                             | Phase 5A narration complete; Phase 5B caption review implemented; rendering pending             |
 | Phase 6                  | Completed-video experience                                                       | Designed; not implemented                                                                       |
 | Phase 7                  | Manual Instagram publishing and one-time scheduling                              | Designed; not implemented                                                                       |
 | Phase 8                  | Recurring content generation and publishing                                      | Designed; not implemented                                                                       |
@@ -141,6 +141,22 @@ Phase 5A narration vertical slice implemented on **2026-11-14**:
 - Final Phase 5A verification passed: formatting, all workspace type checks, all 37 automated tests, diff validation, and the optimized Next.js production build.
 - The current request execution is synchronous while the durable job remains the source of truth. Inngest execution and private Cloudflare R2 storage remain required before production deployment; R2 credentials are not configured in the current local environment.
 
+Phase 5B caption review vertical slice implemented on **2026-11-14**:
+
+- Added deterministic phrase-level caption compilation from retained ElevenLabs character timestamps. No additional AI or speech-provider request is required, and completed Phase 5A narration jobs are safely backfilled on first caption review.
+- Added bounded shared caption contracts for cue identity, protected start/end timing, review status, optimistic versioning, and three allowlisted styles: Minimal, Word Focus, and Social Bold.
+- Added an owner-scoped caption review snapshot inside the exact completed narration job. Caption saves may change only bounded text and style; scene membership, cue IDs, audio timing, narration assets, and the approved storyboard remain immutable.
+- Added optimistic concurrency, exact-current-approved-version checks, draft saving, and atomic staged-edit approval. Once approved, caption wording, style, and synchronized timing are locked for rendering without creating a storyboard revision or regenerating narration.
+- Added a responsive Caption Timing Review screen with a stable-size caption preview, per-scene audio playback, live cue switching, editable phrase text, planned-versus-actual duration comparison, overrun warnings, sticky save/approval controls, and an approval confirmation dialog.
+- Added a prominent `Review captions` next-step action to completed narration pages so users can continue without searching below the audio list.
+- Automated verification passed: formatting, diff validation, all workspace type checks, all **44** tests, and the optimized Next.js production build. Caption-gap regression coverage ensures an earlier phrase is not repeated during silence between cues. Per the product owner's testing preference, signed-in browser QA was not run automatically.
+
+Product UI and interaction guardrails confirmed during Phase 5B:
+
+- Repeated cards and project items must be content-driven and compact. Do not use oversized fixed/minimum heights or layouts that leave avoidable blank regions; validate the design with many items, not only one.
+- Timed previews must display content only inside the authoritative cue interval. Silence and timing gaps remain visually empty instead of falling back to an earlier or default caption.
+- Future workflow steps must keep the next primary action visible without requiring the user to scroll to the bottom of a long page.
+
 ## 5. Existing validated video POCs
 
 The repository already proves the deterministic rendering approach with three narrated vertical videos:
@@ -214,13 +230,13 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 - MongoDB Atlas is configured and connectivity-tested locally; production deployment configuration remains deferred.
 - Remotion licensing must be confirmed before commercial production launch.
 - The production Gemini model remains environment-configurable. Live account verification currently supports and uses `gemini-3.5-flash-lite`; `gemini-2.5-flash-lite` is listed by the API but rejects new users and must not be selected.
-- Better Auth, project repositories, and durable local narration jobs are wired. Inngest execution, R2 storage, and Sentry remain deferred to their planned production-hardening slices.
+- Better Auth, project repositories, durable local narration jobs, and caption review snapshots are wired. Inngest execution, R2 storage, and Sentry remain deferred to their planned production-hardening slices.
 - Instagram publishing requires an eligible Creator or Business account and Meta app review; it is design-only today.
 - Stitch screens 01–18 are approved. The public homepage is implemented; authenticated product screens remain design-only.
 
 ## 10. Exact next action
 
-Begin Phase 5B with caption timing and narration-fit review: derive word-level cues from ElevenLabs alignment, compare actual scene audio against storyboard timing, surface any overrun before rendering, and let the user approve the synchronized audio/caption timeline.
+Begin Phase 5C by compiling the approved storyboard, narration assets, and approved caption timeline into a deterministic Remotion render input; render the first private vertical MP4 without allowing model-generated executable code.
 
 ## 11. Update protocol for future developers and agents
 

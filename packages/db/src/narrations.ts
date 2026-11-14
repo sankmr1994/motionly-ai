@@ -1,5 +1,10 @@
 import {
+  buildCaptionCues,
+  captionEditsSchema,
+  captionReviewSchema,
   storyboardSchema,
+  type CaptionEdits,
+  type CaptionReview,
   type NarrationJobStatus,
   type NarrationSceneStatus,
   type ProjectStatus,
@@ -17,12 +22,19 @@ type NarrationSceneDocument = {
   mimeType?: "audio/mpeg";
   byteLength?: number;
   durationSeconds?: number;
+  plannedDurationSeconds?: number;
   alignment?: {
     characters: string[];
     characterStartTimesSeconds: number[];
     characterEndTimesSeconds: number[];
   };
   generatedAt?: Date;
+};
+
+type CaptionReviewDocument = CaptionReview & {
+  createdAt: Date;
+  updatedAt: Date;
+  approvedAt?: Date;
 };
 
 type NarrationJobDocument = {
@@ -41,6 +53,7 @@ type NarrationJobDocument = {
     displayName: string;
   };
   scenes: NarrationSceneDocument[];
+  captions?: CaptionReviewDocument;
   error?: {
     code: "NARRATION_GENERATION_FAILED";
     safeMessage: string;
@@ -109,6 +122,27 @@ export type NarrationGenerationInput = {
   }>;
 };
 
+export type CaptionReviewView = {
+  jobId: string;
+  projectId: string;
+  versionId: string;
+  revision: number;
+  status: CaptionReview["status"];
+  style: CaptionReview["style"];
+  version: number;
+  scenes: Array<{
+    sceneId: string;
+    title: string;
+    audioDurationSeconds: number;
+    plannedDurationSeconds: number;
+    timingDeltaSeconds: number;
+    fit: "FITS" | "OVERRUN";
+    cues: CaptionReview["scenes"][number]["cues"];
+  }>;
+  updatedAt: string;
+  approvedAt?: string;
+};
+
 const toObjectId = (value: string) =>
   ObjectId.isValid(value) ? new ObjectId(value) : null;
 
@@ -149,6 +183,17 @@ export function getNarrationReadiness(
   return projectStatus === "APPROVED" && approvalStatus === "APPROVED"
     ? ("ready" as const)
     : ("not_approved" as const);
+}
+
+export function getCaptionTimingFit(
+  audioDurationSeconds: number,
+  plannedDurationSeconds: number,
+) {
+  const timingDeltaSeconds = audioDurationSeconds - plannedDurationSeconds;
+  return {
+    timingDeltaSeconds,
+    fit: timingDeltaSeconds > 0.5 ? ("OVERRUN" as const) : ("FITS" as const),
+  };
 }
 
 export async function beginNarrationGeneration(
@@ -267,6 +312,7 @@ export async function beginNarrationGeneration(
         title: scene.title ?? `Scene ${index + 1}`,
         narration: scene.narration,
         status: "PENDING" as const,
+        plannedDurationSeconds: scene.durationEstimateSeconds,
       }));
       await database
         .collection<NarrationJobDocument>("narrationJobs")
@@ -465,4 +511,209 @@ export async function getNarrationSceneAsset(
     mimeType: scene.mimeType ?? "audio/mpeg",
     byteLength: scene.byteLength,
   };
+}
+
+function createCaptionReview(job: NarrationJobDocument) {
+  const scenes = job.scenes.map((scene) => {
+    if (!scene.alignment) return null;
+    const cues = buildCaptionCues(scene.sceneId, scene.alignment);
+    return cues.length ? { sceneId: scene.sceneId, cues } : null;
+  });
+  if (scenes.some((scene) => !scene)) return null;
+  const parsed = captionReviewSchema.safeParse({
+    status: "DRAFT",
+    style: "KARAOKE",
+    version: 1,
+    scenes,
+  });
+  if (!parsed.success) return null;
+  const now = new Date();
+  return {
+    ...parsed.data,
+    createdAt: now,
+    updatedAt: now,
+  } satisfies CaptionReviewDocument;
+}
+
+function toCaptionReviewView(
+  job: NarrationJobDocument & { captions: CaptionReviewDocument },
+  storyboard: Storyboard,
+): CaptionReviewView {
+  const plannedDurations = new Map(
+    storyboard.scenes.map((scene) => [scene.id, scene.durationEstimateSeconds]),
+  );
+  return {
+    jobId: job._id.toHexString(),
+    projectId: job.projectId.toHexString(),
+    versionId: job.versionId.toHexString(),
+    revision: job.revision,
+    status: job.captions.status,
+    style: job.captions.style,
+    version: job.captions.version,
+    scenes: job.captions.scenes.map((captionScene) => {
+      const narrationScene = job.scenes.find(
+        (scene) => scene.sceneId === captionScene.sceneId,
+      );
+      const audioDurationSeconds = narrationScene?.durationSeconds ?? 0;
+      const plannedDurationSeconds =
+        narrationScene?.plannedDurationSeconds ??
+        plannedDurations.get(captionScene.sceneId) ??
+        0;
+      const timing = getCaptionTimingFit(
+        audioDurationSeconds,
+        plannedDurationSeconds,
+      );
+      return {
+        sceneId: captionScene.sceneId,
+        title: narrationScene?.title ?? "Untitled scene",
+        audioDurationSeconds,
+        plannedDurationSeconds,
+        ...timing,
+        cues: captionScene.cues,
+      };
+    }),
+    updatedAt: job.captions.updatedAt.toISOString(),
+    ...(job.captions.approvedAt
+      ? { approvedAt: job.captions.approvedAt.toISOString() }
+      : {}),
+  };
+}
+
+export async function getOrCreateCaptionReview(
+  ownerId: string,
+  projectId: string,
+): Promise<CaptionReviewView | null> {
+  const id = toObjectId(projectId);
+  if (!id) return null;
+  const database = await getDatabase();
+  const project = await database
+    .collection<ProjectDocument>("projects")
+    .findOne({ _id: id, ownerId, status: "APPROVED" });
+  if (!project) return null;
+  let job = await database
+    .collection<NarrationJobDocument>("narrationJobs")
+    .findOne(
+      {
+        ownerId,
+        projectId: id,
+        versionId: project.currentVersionId,
+        status: "COMPLETED",
+      },
+      { sort: { createdAt: -1 } },
+    );
+  if (!job) return null;
+  if (!job.captions) {
+    const captions = createCaptionReview(job);
+    if (!captions) return null;
+    await database
+      .collection<NarrationJobDocument>("narrationJobs")
+      .updateOne(
+        { _id: job._id, ownerId, captions: { $exists: false } },
+        { $set: { captions, updatedAt: new Date() } },
+      );
+    job = await database
+      .collection<NarrationJobDocument>("narrationJobs")
+      .findOne({ _id: job._id, ownerId });
+    if (!job?.captions) return null;
+  }
+  const version = await database
+    .collection<ProjectVersionDocument>("projectVersions")
+    .findOne({ _id: job.versionId, ownerId, projectId: id });
+  const storyboard = storyboardSchema.safeParse(version?.storyboard);
+  if (!storyboard.success) return null;
+  return toCaptionReviewView(
+    job as NarrationJobDocument & { captions: CaptionReviewDocument },
+    storyboard.data,
+  );
+}
+
+export async function updateCaptionReview(
+  ownerId: string,
+  projectId: string,
+  input: CaptionEdits,
+  approve: boolean,
+): Promise<
+  | { ok: true; status: "DRAFT" | "APPROVED" }
+  | {
+      ok: false;
+      reason: "not_found" | "invalid" | "conflict" | "already_approved";
+    }
+> {
+  const parsed = captionEditsSchema.safeParse(input);
+  const projectObjectId = toObjectId(projectId);
+  if (!parsed.success || !projectObjectId) {
+    return { ok: false, reason: "invalid" };
+  }
+  const jobObjectId = toObjectId(parsed.data.jobId);
+  if (!jobObjectId) return { ok: false, reason: "not_found" };
+  const database = await getDatabase();
+  const project = await database
+    .collection<ProjectDocument>("projects")
+    .findOne({
+      _id: projectObjectId,
+      ownerId,
+      status: "APPROVED",
+    });
+  if (!project) return { ok: false, reason: "not_found" };
+  const job = await database
+    .collection<NarrationJobDocument>("narrationJobs")
+    .findOne({
+      _id: jobObjectId,
+      ownerId,
+      projectId: projectObjectId,
+      versionId: project.currentVersionId,
+      status: "COMPLETED",
+    });
+  if (!job?.captions) return { ok: false, reason: "not_found" };
+  if (job.captions.status === "APPROVED") {
+    return { ok: false, reason: "already_approved" };
+  }
+  if (job.captions.version !== parsed.data.version) {
+    return { ok: false, reason: "conflict" };
+  }
+  const existingCues = job.captions.scenes.flatMap((scene) => scene.cues);
+  const editById = new Map(
+    parsed.data.cues.map((cue) => [cue.id, cue.text] as const),
+  );
+  if (
+    editById.size !== existingCues.length ||
+    existingCues.some((cue) => !editById.has(cue.id))
+  ) {
+    return { ok: false, reason: "invalid" };
+  }
+  const now = new Date();
+  const scenes = job.captions.scenes.map((scene) => ({
+    ...scene,
+    cues: scene.cues.map((cue) => ({
+      ...cue,
+      text: editById.get(cue.id) ?? cue.text,
+    })),
+  }));
+  const status = approve ? ("APPROVED" as const) : ("DRAFT" as const);
+  const result = await database
+    .collection<NarrationJobDocument>("narrationJobs")
+    .updateOne(
+      {
+        _id: jobObjectId,
+        ownerId,
+        projectId: projectObjectId,
+        status: "COMPLETED",
+        "captions.status": "DRAFT",
+        "captions.version": parsed.data.version,
+      },
+      {
+        $set: {
+          "captions.status": status,
+          "captions.style": parsed.data.style,
+          "captions.scenes": scenes,
+          "captions.version": parsed.data.version + 1,
+          "captions.updatedAt": now,
+          ...(approve ? { "captions.approvedAt": now } : {}),
+          updatedAt: now,
+        },
+      },
+    );
+  return result.modifiedCount
+    ? { ok: true, status }
+    : { ok: false, reason: "conflict" };
 }

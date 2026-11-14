@@ -75,17 +75,31 @@ export default async function NarrationPage({
             storyboard before captions or video rendering begin.
           </p>
         </div>
-        <span
-          className={`narration-status ${job?.status.toLowerCase() ?? "new"}`}
-        >
-          {job?.status === "COMPLETED"
-            ? "Audio ready"
-            : job?.status === "GENERATING"
-              ? `${job.progress}% generating`
-              : job?.status === "FAILED"
-                ? "Needs retry"
-                : "Not generated"}
-        </span>
+        <div className="narration-heading-actions">
+          <span
+            className={`narration-status ${job?.status.toLowerCase() ?? "new"}`}
+          >
+            {job?.status === "COMPLETED"
+              ? "Audio ready"
+              : job?.status === "GENERATING"
+                ? `${job.progress}% generating`
+                : job?.status === "FAILED"
+                  ? "Needs retry"
+                  : "Not generated"}
+          </span>
+          {job?.status === "COMPLETED" ? (
+            <Link
+              className="narration-caption-cta"
+              href={`/dashboard/projects/${projectId}/captions`}
+            >
+              <span>
+                <small>Next step</small>
+                <strong>Review captions</strong>
+              </span>
+              <b aria-hidden="true">→</b>
+            </Link>
+          ) : null}
+        </div>
       </section>
 
       <div className="narration-layout">

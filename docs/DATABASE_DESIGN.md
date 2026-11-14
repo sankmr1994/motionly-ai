@@ -363,11 +363,11 @@ db.planningJobs.createIndex(
 );
 ```
 
-## 8A. `narrationJobs` (Phase 5A)
+## 8A. `narrationJobs` (Phase 5A–5B)
 
 ### Purpose
 
-Durable, owner-scoped progress and provenance for scene narration generated from one exact approved project version. A narration job never changes project revision history.
+Durable, owner-scoped progress and provenance for scene narration and its synchronized caption-review snapshot, generated from one exact approved project version. A narration job never changes project revision history.
 
 ### Implemented document shape
 
@@ -397,6 +397,7 @@ Durable, owner-scoped progress and provenance for scene narration generated from
       mimeType: "audio/mpeg",
       byteLength: 123456,
       durationSeconds: 6.2,
+      plannedDurationSeconds: 6,
       alignment: {
         characters: ["E", "x", "a"],
         characterStartTimesSeconds: [0, 0.08, 0.14],
@@ -405,6 +406,27 @@ Durable, owner-scoped progress and provenance for scene narration generated from
       generatedAt: ISODate("...")
     }
   ],
+  captions: {
+    status: "DRAFT", // DRAFT | APPROVED
+    style: "KARAOKE", // MINIMAL | KARAOKE | BOLD
+    version: 1,
+    scenes: [
+      {
+        sceneId: "scene_01",
+        cues: [
+          {
+            id: "scene_01_caption_01",
+            startSeconds: 0,
+            endSeconds: 2.4,
+            text: "Exact readable caption phrase"
+          }
+        ]
+      }
+    ],
+    createdAt: ISODate("..."),
+    updatedAt: ISODate("..."),
+    approvedAt: undefined
+  },
   error: undefined,
   createdAt: ISODate("..."),
   startedAt: ISODate("..."),
@@ -414,7 +436,9 @@ Durable, owner-scoped progress and provenance for scene narration generated from
 }
 ```
 
-Audio bytes remain outside MongoDB. Phase 5A uses an ignored private local-media adapter for development because R2 is not configured; the same opaque `assetKey` boundary moves to private R2 before deployment. Timestamp alignment is retained now so captions can be compiled later without repeating provider calls.
+Audio bytes remain outside MongoDB. Phase 5A uses an ignored private local-media adapter for development because R2 is not configured; the same opaque `assetKey` boundary moves to private R2 before deployment. Phase 5B deterministically compiles phrase cues from the retained character alignment without another provider request.
+
+Caption cues remain embedded in their narration job because they are a small, bounded review artifact tied one-to-one to that audio. Cue timing and identity are immutable after derivation; only bounded text and the allowlisted style may change before approval. `captions.version` provides optimistic concurrency, and `approvedAt` locks the exact render input.
 
 ### Implemented indexes
 
