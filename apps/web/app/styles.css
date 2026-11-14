@@ -1298,7 +1298,7 @@ a:focus-visible {
 .templates-section,
 .quality-section,
 .final-cta,
-footer {
+.site-footer {
   width: min(var(--max-width), calc(100% - 80px));
   margin-inline: auto;
 }
@@ -2117,7 +2117,7 @@ footer {
   animation: pulse-dot 2s ease-in-out infinite;
 }
 
-footer {
+.site-footer {
   min-height: 145px;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -2131,12 +2131,12 @@ footer {
   color: var(--ink);
 }
 
-footer > p {
+.site-footer > p {
   font-family: var(--display);
   font-size: 0.95rem;
 }
 
-footer > div {
+.site-footer > div {
   justify-self: end;
   display: flex;
   gap: 18px;
@@ -2191,7 +2191,7 @@ footer > div {
   .templates-section,
   .quality-section,
   .final-cta,
-  footer {
+  .site-footer {
     width: min(100% - 48px, var(--max-width));
   }
 
@@ -2299,7 +2299,7 @@ footer > div {
   .templates-section,
   .quality-section,
   .final-cta,
-  footer {
+  .site-footer {
     width: min(100% - 32px, var(--max-width));
   }
 
@@ -2491,17 +2491,17 @@ footer > div {
     font-size: 3.7rem;
   }
 
-  footer {
+  .site-footer {
     grid-template-columns: 1fr;
     gap: 12px;
     padding: 40px 0;
   }
 
-  footer > p {
+  .site-footer > p {
     margin: 0;
   }
 
-  footer > div {
+  .site-footer > div {
     justify-self: start;
     flex-wrap: wrap;
   }
@@ -3115,7 +3115,9 @@ footer > div {
 .project-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  grid-auto-rows: max-content;
+  align-items: start;
+  gap: 12px;
   margin-top: 16px;
 }
 
@@ -3182,24 +3184,25 @@ footer > div {
 .project-card {
   min-width: 0;
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-self: start;
   border: 1px solid #dce2ec;
   background: #fff;
   box-shadow: 0 5px 20px rgba(21, 34, 56, 0.04);
 }
 
 .project-thumbnail {
-  min-height: 128px;
+  min-height: 118px;
   display: grid;
   align-content: space-between;
-  padding: 12px;
+  padding: 10px;
   background: #17243a;
   color: #fff;
 }
 
 .project-thumbnail > span {
   color: var(--chartreuse);
-  font: 800 18px/1 monospace;
+  font: 800 15px/1 monospace;
 }
 .project-thumbnail div {
   display: flex;
@@ -3207,16 +3210,16 @@ footer > div {
   gap: 5px;
 }
 .project-thumbnail i {
-  width: 8px;
-  height: 23px;
+  width: 6px;
+  height: 18px;
   background: var(--cobalt);
 }
 .project-thumbnail i:nth-child(2) {
-  height: 38px;
+  height: 29px;
   background: var(--sky);
 }
 .project-thumbnail i:nth-child(3) {
-  height: 29px;
+  height: 22px;
   background: var(--chartreuse);
 }
 .project-thumbnail small {
@@ -3226,11 +3229,13 @@ footer > div {
 
 .project-card-copy {
   min-width: 0;
-  padding: 13px 14px;
+  display: grid;
+  align-content: start;
+  padding: 10px 12px;
 }
 
 .project-card-meta {
-  min-height: 28px;
+  min-height: 24px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -3250,11 +3255,11 @@ footer > div {
   color: var(--cobalt);
 }
 .project-card h3 {
-  margin: 8px 0 5px;
+  margin: 5px 0 3px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: 13px;
 }
 .project-card p {
   margin: 0;
@@ -3266,11 +3271,17 @@ footer > div {
 }
 .project-card footer {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-top: 15px;
+  margin-top: 10px;
   color: #8a94a5;
   font-size: 9px;
+}
+
+.project-card footer time {
+  min-width: 0;
+  line-height: 1.35;
 }
 .project-card footer span {
   color: var(--cobalt);
@@ -4932,6 +4943,7 @@ footer > div {
 .project-review-link {
   color: var(--cobalt);
   font-weight: 800;
+  white-space: nowrap;
   text-decoration: none;
 }
 
@@ -5653,14 +5665,14 @@ footer > div {
     background: #eef1ff;
   }
   .project-card {
-    grid-template-columns: 92px minmax(0, 1fr);
+    grid-template-columns: 72px minmax(0, 1fr);
   }
   .project-thumbnail {
-    min-height: 164px;
-    padding: 13px;
+    min-height: 118px;
+    padding: 10px;
   }
   .project-card footer {
-    flex-direction: column;
+    flex-direction: row;
   }
   .dashboard-next-video {
     align-items: stretch;

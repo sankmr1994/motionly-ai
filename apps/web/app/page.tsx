@@ -478,7 +478,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer>
+      <footer className="site-footer">
         <a
           className="brand footer-brand"
           href="#top"
