@@ -3,6 +3,7 @@ import type {
   CreateProjectRequest,
   EditProjectStoryboardRequest,
   ProjectInputMode,
+  ProjectReference,
   ProjectStatus,
   Storyboard,
   VideoDefaults,
@@ -35,17 +36,27 @@ type ProjectDocument = {
   schemaVersion: "1";
 };
 
+type ProjectSource = {
+  inputMode: ProjectInputMode;
+  topic?: string;
+  sourceScript?: string;
+  references?: ProjectReference[];
+};
+
+type StoryboardEditPatch = {
+  sceneId: string;
+  title?: string;
+  narration?: string;
+  objects?: string[];
+};
+
 type ProjectVersionDocument = {
   _id: ObjectId;
   ownerId: string;
   projectId: ObjectId;
   revision: number;
   basedOnVersionId?: ObjectId;
-  source: {
-    inputMode: ProjectInputMode;
-    topic?: string;
-    sourceScript?: string;
-  };
+  source: ProjectSource;
   videoDefaults: VideoDefaults;
   script?: string;
   storyboard?: Storyboard;
@@ -82,6 +93,8 @@ type PlanningJobDocument = {
   ownerId: string;
   projectId: ObjectId;
   sourceVersionId: ObjectId;
+  referenceOverride?: ProjectReference[];
+  editPatches?: StoryboardEditPatch[];
   previousProjectStatus: "DRAFT" | "REVIEW_READY";
   status: "GENERATING" | "COMPLETED" | "FAILED";
   progress: number;
@@ -121,6 +134,7 @@ export type ProjectSummary = {
 
 export type ProjectDraft = ProjectSummary & {
   content: string;
+  references: ProjectReference[];
 };
 
 export type ProjectPlan = {
@@ -133,6 +147,7 @@ export type ProjectPlan = {
   contentHash: string;
   approvalStatus: "REVIEW_READY" | "APPROVED";
   isCurrent: boolean;
+  references: ProjectReference[];
   generatedBy: {
     provider: "GOOGLE_GEMINI";
     model: string;
@@ -157,6 +172,7 @@ export type PlanningInput = {
   sourceVersionId: string;
   inputMode: ProjectInputMode;
   content: string;
+  references: ProjectReference[];
   video: VideoDefaults;
 };
 
@@ -180,6 +196,19 @@ export function getPlanningReadiness(status: ProjectStatus) {
     return "ready" as const;
   }
   return "not_ready" as const;
+}
+
+export function resolvePlanningReferences(
+  current: ProjectReference[] = [],
+  override?: ProjectReference[],
+) {
+  const references = override ?? current;
+  return {
+    references,
+    changed:
+      override !== undefined &&
+      JSON.stringify(override) !== JSON.stringify(current),
+  };
 }
 
 export function getRevisionSelectionReadiness(
@@ -358,6 +387,67 @@ export function compileStoryboardEdits(
   };
 }
 
+export function deriveStoryboardEditPatches(
+  storyboard: Storyboard,
+  edits: EditProjectStoryboardRequest["scenes"],
+):
+  | { ok: true; patches: StoryboardEditPatch[] }
+  | { ok: false; message: string } {
+  const compiled = compileStoryboardEdits(storyboard, edits);
+  if (!compiled.ok) return { ok: false, message: compiled.message };
+  const editsById = new Map(edits.map((scene) => [scene.id, scene]));
+  const patches = storyboard.scenes.flatMap((scene, index) => {
+    const edit = editsById.get(scene.id)!;
+    const patch: StoryboardEditPatch = { sceneId: scene.id };
+    const originalTitle = scene.title ?? `Scene ${index + 1}`;
+    if (edit.title.trim() !== originalTitle) patch.title = edit.title.trim();
+    if (edit.narration.trim() !== scene.narration) {
+      patch.narration = edit.narration.trim();
+    }
+    if (
+      edit.objects.some(
+        (object, objectIndex) => object.trim() !== scene.objects[objectIndex],
+      )
+    ) {
+      patch.objects = edit.objects.map((object) => object.trim());
+    }
+    return Object.keys(patch).length > 1 ? [patch] : [];
+  });
+  return { ok: true, patches };
+}
+
+export function applyStoryboardEditPatches(
+  storyboard: Storyboard,
+  patches: StoryboardEditPatch[],
+) {
+  if (!patches.length) {
+    return {
+      ok: true as const,
+      storyboard,
+      script: storyboard.scenes.map((scene) => scene.narration).join("\n\n"),
+    };
+  }
+  const patchesById = new Map(patches.map((patch) => [patch.sceneId, patch]));
+  const compiled = compileStoryboardEdits(
+    storyboard,
+    storyboard.scenes.map((scene, index) => {
+      const patch = patchesById.get(scene.id);
+      return {
+        id: scene.id,
+        title: patch?.title ?? scene.title ?? `Scene ${index + 1}`,
+        narration: patch?.narration ?? scene.narration,
+        objects: patch?.objects ?? scene.objects,
+      };
+    }),
+  );
+  if (!compiled.ok) return compiled;
+  return {
+    ok: true as const,
+    storyboard: compiled.storyboard,
+    script: compiled.script,
+  };
+}
+
 function projectCollection(
   database: Awaited<ReturnType<typeof getDatabase>>,
 ): Collection<ProjectDocument> {
@@ -383,12 +473,22 @@ function toSummary(project: ProjectDocument): ProjectSummary {
 }
 
 function contentHash(input: CreateProjectRequest): string {
-  const source = input.inputMode === "TOPIC" ? input.topic : input.sourceScript;
-  return `sha256:${createHash("sha256").update(source).digest("hex")}`;
+  return hashValue(JSON.stringify(sourceFromInput(input)));
 }
 
 function hashValue(value: string): string {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
+}
+
+function sourceFromInput(input: CreateProjectRequest): ProjectSource {
+  return {
+    ...(input.inputMode === "TOPIC"
+      ? { inputMode: "TOPIC" as const, topic: input.topic }
+      : { inputMode: "SCRIPT" as const, sourceScript: input.sourceScript }),
+    ...(input.references?.length
+      ? { references: input.references.map(({ url }) => ({ url })) }
+      : {}),
+  };
 }
 
 async function insertProject(
@@ -420,10 +520,7 @@ async function insertProject(
     ownerId,
     projectId,
     revision: 1,
-    source:
-      input.inputMode === "TOPIC"
-        ? { inputMode: "TOPIC", topic: input.topic }
-        : { inputMode: "SCRIPT", sourceScript: input.sourceScript },
+    source: sourceFromInput(input),
     videoDefaults: input.video,
     contentHash: contentHash(input),
     approval: { status: "DRAFT" },
@@ -492,7 +589,11 @@ export async function getProjectDraft(
     version.source.inputMode === "TOPIC"
       ? (version.source.topic ?? "")
       : (version.source.sourceScript ?? "");
-  return { ...toSummary(project), content };
+  return {
+    ...toSummary(project),
+    content,
+    references: version.source.references ?? [],
+  };
 }
 
 function toObjectId(projectId: string): ObjectId | null {
@@ -525,10 +626,7 @@ export async function updateProjectDraft(
         ownerId,
         projectId: id,
         revision,
-        source:
-          input.inputMode === "TOPIC"
-            ? { inputMode: "TOPIC", topic: input.topic }
-            : { inputMode: "SCRIPT", sourceScript: input.sourceScript },
+        source: sourceFromInput(input),
         videoDefaults: input.video,
         contentHash: contentHash(input),
         approval: { status: "DRAFT" },
@@ -686,11 +784,22 @@ export async function deleteDraftProject(
 export async function beginProjectPlanning(
   ownerId: string,
   projectId: string,
+  options: {
+    referenceOverride?: ProjectReference[];
+    expectedVersionId?: string;
+    storyboardEdits?: EditProjectStoryboardRequest;
+  } = {},
 ): Promise<
   | { ok: true; input: PlanningInput }
   | {
       ok: false;
-      reason: "not_found" | "not_ready" | "already_planning";
+      reason:
+        | "not_found"
+        | "not_ready"
+        | "already_planning"
+        | "conflict"
+        | "no_changes"
+        | "invalid_edits";
     }
 > {
   const id = toObjectId(projectId);
@@ -703,7 +812,13 @@ export async function beginProjectPlanning(
       | { ok: true; input: PlanningInput }
       | {
           ok: false;
-          reason: "not_found" | "not_ready" | "already_planning";
+          reason:
+            | "not_found"
+            | "not_ready"
+            | "already_planning"
+            | "conflict"
+            | "no_changes"
+            | "invalid_edits";
         } = { ok: false, reason: "not_found" };
     await session.withTransaction(async () => {
       const project = await projectCollection(database).findOne(
@@ -711,6 +826,13 @@ export async function beginProjectPlanning(
         { session },
       );
       if (!project) return;
+      if (
+        options.expectedVersionId &&
+        project.currentVersionId.toHexString() !== options.expectedVersionId
+      ) {
+        outcome = { ok: false, reason: "conflict" };
+        return;
+      }
       if (project.status === "PLANNING") {
         const interruptedJob = await database
           .collection<PlanningJobDocument>("planningJobs")
@@ -787,6 +909,45 @@ export async function beginProjectPlanning(
           { session },
         );
       if (!version) return;
+      let editPatches: StoryboardEditPatch[] = [];
+      if (options.storyboardEdits) {
+        if (
+          options.storyboardEdits.basedOnVersionId !==
+            project.currentVersionId.toHexString() ||
+          options.storyboardEdits.expectedContentHash !== version.contentHash ||
+          !version.storyboard
+        ) {
+          outcome = { ok: false, reason: "conflict" };
+          return;
+        }
+        const parsedStoryboard = storyboardSchema.safeParse(version.storyboard);
+        if (!parsedStoryboard.success) {
+          outcome = { ok: false, reason: "conflict" };
+          return;
+        }
+        const patchResult = deriveStoryboardEditPatches(
+          parsedStoryboard.data,
+          options.storyboardEdits.scenes,
+        );
+        if (!patchResult.ok) {
+          outcome = { ok: false, reason: "invalid_edits" };
+          return;
+        }
+        editPatches = patchResult.patches;
+      }
+      const referenceDecision = resolvePlanningReferences(
+        version.source.references,
+        options.referenceOverride,
+      );
+      const references = referenceDecision.references;
+      if (
+        options.referenceOverride !== undefined &&
+        !referenceDecision.changed &&
+        !editPatches.length
+      ) {
+        outcome = { ok: false, reason: "no_changes" };
+        return;
+      }
       const content =
         version.source.inputMode === "TOPIC"
           ? (version.source.topic ?? "")
@@ -817,6 +978,10 @@ export async function beginProjectPlanning(
           ownerId,
           projectId: id,
           sourceVersionId: project.currentVersionId,
+          ...(options.referenceOverride !== undefined
+            ? { referenceOverride: options.referenceOverride }
+            : {}),
+          ...(editPatches.length ? { editPatches } : {}),
           previousProjectStatus,
           status: "GENERATING",
           progress: 20,
@@ -825,6 +990,8 @@ export async function beginProjectPlanning(
             JSON.stringify({
               sourceVersionId: project.currentVersionId.toHexString(),
               content,
+              references,
+              editPatches,
               video: version.videoDefaults,
             }),
           ),
@@ -843,6 +1010,7 @@ export async function beginProjectPlanning(
           sourceVersionId: project.currentVersionId.toHexString(),
           inputMode: version.source.inputMode,
           content,
+          references,
           video: version.videoDefaults,
         },
       };
@@ -947,17 +1115,32 @@ export async function completeProjectPlanning(
           { session },
         );
       if (!sourceVersion) throw new Error("Source version was not found.");
+      const plannedSource: ProjectSource =
+        job.referenceOverride !== undefined
+          ? {
+              ...sourceVersion.source,
+              references: job.referenceOverride,
+            }
+          : sourceVersion.source;
+      const editedCandidate = applyStoryboardEditPatches(
+        storyboard,
+        job.editPatches ?? [],
+      );
+      if (!editedCandidate.ok) {
+        throw new Error(
+          `Combined storyboard edits failed: ${editedCandidate.message}`,
+        );
+      }
+      const finalStoryboard = editedCandidate.storyboard;
       const now = new Date();
       const versionId = new ObjectId();
       const revision = project.revisionCounter + 1;
-      const script = storyboard.scenes
-        .map((scene) => scene.narration)
-        .join("\n\n");
+      const script = editedCandidate.script;
       const plannedHash = hashValue(
         JSON.stringify({
-          source: sourceVersion.source,
+          source: plannedSource,
           script,
-          storyboard,
+          storyboard: finalStoryboard,
           videoDefaults: sourceVersion.videoDefaults,
         }),
       );
@@ -967,10 +1150,10 @@ export async function completeProjectPlanning(
         projectId: job.projectId,
         revision,
         basedOnVersionId: job.sourceVersionId,
-        source: sourceVersion.source,
+        source: plannedSource,
         videoDefaults: sourceVersion.videoDefaults,
         script,
-        storyboard,
+        storyboard: finalStoryboard,
         templateRegistryVersion: "2026-11-09.1",
         planningProvenance: {
           provider: generated.provider,
@@ -979,11 +1162,15 @@ export async function completeProjectPlanning(
           generatedAt: new Date(generated.generatedAt),
           usedFallback: false,
         },
+        ...(job.editPatches?.length
+          ? { editingProvenance: { editedBy: ownerId, editedAt: now } }
+          : {}),
         validation: {
           valid: true,
           warnings: [],
           totalFrames:
-            storyboard.video.targetDurationSeconds * storyboard.video.fps,
+            finalStoryboard.video.targetDurationSeconds *
+            finalStoryboard.video.fps,
         },
         contentHash: plannedHash,
         approval: { status: "REVIEW_READY" },
@@ -1032,10 +1219,11 @@ export async function completeProjectPlanning(
         revision,
         nextRevision: revision + 1,
         script,
-        storyboard,
+        storyboard: finalStoryboard,
         contentHash: plannedHash,
         approvalStatus: "REVIEW_READY",
         isCurrent: true,
+        references: plannedSource.references ?? [],
         generatedBy: {
           provider: generated.provider,
           model: generated.model,
@@ -1082,6 +1270,7 @@ export async function getProjectPlan(
     approvalStatus:
       version.approval.status === "APPROVED" ? "APPROVED" : "REVIEW_READY",
     isCurrent: project.currentVersionId.equals(version._id),
+    references: version.source.references ?? [],
     generatedBy: {
       provider: version.planningProvenance.provider,
       model: version.planningProvenance.model,

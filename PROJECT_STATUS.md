@@ -2,9 +2,9 @@
 
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
-Last updated: **2026-11-13**
-Current implementation phase: **Phase 4 — Idea-to-storyboard workflow in progress**
-Next planned phase: **Phase 4B — Source references and factual-grounding support**
+Last updated: **2026-11-14**
+Current implementation phase: **Phase 4 — Idea-to-storyboard workflow complete**
+Next planned phase: **Phase 5A — Narration generation and audio preview**
 
 ## 1. Product summary
 
@@ -14,20 +14,20 @@ V1 is creator-first and Instagram-first. Billing, subscriptions, payments, and i
 
 ## 2. Status at a glance
 
-| Phase                    | Scope                                                                            | Status                                                                                                           |
-| ------------------------ | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Product and architecture | PRD, system, API, database, Instagram integration, brand direction               | Complete                                                                                                         |
-| Video proof of concept   | Solar eclipse, compound interest, binary search                                  | Complete and verified                                                                                            |
-| Phase 0                  | Monorepo foundation, configuration, database adapter, health checks, logging, CI | Complete                                                                                                         |
-| Phase 1                  | Porcelain Cobalt design system and public homepage                               | Approved, implemented, and browser-verified                                                                      |
-| Phase 2                  | Email/password authentication, verification, recovery, and onboarding            | Core flow implemented; live recovery delivery check remains                                                      |
-| Phase 3                  | Dashboard and project management                                                 | Complete and product-owner approved                                                                              |
-| Phase 4                  | Idea-to-storyboard workflow                                                      | Generation, revision history, editing, review, regeneration, and approval implemented; source references pending |
-| Phase 5                  | Production video-generation pipeline                                             | POC complete; hosted asynchronous pipeline not implemented                                                       |
-| Phase 6                  | Completed-video experience                                                       | Designed; not implemented                                                                                        |
-| Phase 7                  | Manual Instagram publishing and one-time scheduling                              | Designed; not implemented                                                                                        |
-| Phase 8                  | Recurring content generation and publishing                                      | Designed; not implemented                                                                                        |
-| Phase 9                  | Production hardening and launch                                                  | Not started                                                                                                      |
+| Phase                    | Scope                                                                            | Status                                                                                          |
+| ------------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Product and architecture | PRD, system, API, database, Instagram integration, brand direction               | Complete                                                                                        |
+| Video proof of concept   | Solar eclipse, compound interest, binary search                                  | Complete and verified                                                                           |
+| Phase 0                  | Monorepo foundation, configuration, database adapter, health checks, logging, CI | Complete                                                                                        |
+| Phase 1                  | Porcelain Cobalt design system and public homepage                               | Approved, implemented, and browser-verified                                                     |
+| Phase 2                  | Email/password authentication, verification, recovery, and onboarding            | Core flow implemented; live recovery delivery check remains                                     |
+| Phase 3                  | Dashboard and project management                                                 | Complete and product-owner approved                                                             |
+| Phase 4                  | Idea-to-storyboard workflow                                                      | Complete: generation, references, revision history, editing, review, regeneration, and approval |
+| Phase 5                  | Production video-generation pipeline                                             | POC complete; hosted asynchronous pipeline not implemented                                      |
+| Phase 6                  | Completed-video experience                                                       | Designed; not implemented                                                                       |
+| Phase 7                  | Manual Instagram publishing and one-time scheduling                              | Designed; not implemented                                                                       |
+| Phase 8                  | Recurring content generation and publishing                                      | Designed; not implemented                                                                       |
+| Phase 9                  | Production hardening and launch                                                  | Not started                                                                                     |
 
 ## 3. Phase 0 completed work
 
@@ -116,12 +116,18 @@ Phase 4A idea-to-storyboard vertical slice implemented on **2026-11-12**:
 - Added storyboard revision history and safe current-version selection. A compact sidebar trigger opens a responsive history drawer with five newest-first revisions per page; selecting an older storyboard changes only the current-version pointer, creates no duplicate, preserves every version, and requires confirmation. Regeneration alone creates the next immutable revision, and approved projects remain locked.
 - Added a final approval confirmation dialog and server-side confirmation guard so a single accidental click cannot lock a storyboard revision.
 - Added Phase 4B storyboard editing: users can edit scene titles, narration, and existing visual labels, review a deterministic change summary, and save an owner-scoped immutable revision. Visual-label renames automatically update matching animation-action references. Server validation protects scene identity, schema, visual-object count, locked timing and render configuration, narration word limits, content hashes, and concurrent changes.
+- Completed Phase 4B source grounding: the create flow accepts an optional trusted public HTTPS webpage, validates and stores it with immutable source lineage, requires successful Gemini URL Context retrieval plus an explicit idea-to-reference relevance assessment during planning, preserves it through regeneration and edits, and displays the grounded source during storyboard review. Unsafe, private/local, credential-bearing, unreadable, paywalled, unrelated, and provider-rejected URLs fail safely without producing an ungrounded storyboard.
+- Added safe reference replacement from storyboard review. A replacement is checked against the current revision, URL retrieval and idea relevance must pass, and a valid storyboard must be produced before the new reference becomes part of a new immutable revision; any failure leaves the current revision and source unchanged.
+- Added a responsive sticky review command bar so Edit, Approve, and Revision History are visible without scrolling to the end of the storyboard. Regeneration remains available under the secondary More menu, and reference changes live beside the trusted-source summary.
+- Added atomic combined storyboard editing and reference replacement. The editor can stage a new trusted URL with scene changes, generate a temporary source-grounded candidate, overlay only the fields the user changed, validate the final storyboard, and persist exactly one new immutable revision. Failed retrieval, relevance, generation, edit compatibility, or concurrency checks leave the current revision unchanged.
 - Added transactional approval that locks the reviewed content hash and moves the project to `APPROVED`; narration and video rendering remain intentionally out of scope.
 - Added authenticated planning and approval API routes plus migration `002-planning-job-indexes`.
-- Automated verification passed through the visual-label Phase 4B slice: all workspace type checks, all 24 automated tests, formatting, diff validation, and the optimized Next.js production build. The configured Atlas migration runner passed in the earlier Phase 4A baseline.
+- Automated verification passed through the combined editing and safe reference-replacement Phase 4B slice: all workspace type checks, all 33 automated tests, formatting, diff validation, and the optimized Next.js production build. The configured Atlas migration runner passed in the earlier Phase 4A baseline.
 - Live Gemini and browser verification passed on **2026-11-12**: `gemini-3.5-flash-lite` generated a valid five-scene, 30-second compound-interest plan, MongoDB saved immutable Revision 2, and the application navigated to the complete storyboard review screen. The revision was intentionally left unapproved for product-owner review.
+- Live reference-grounding verification passed on **2026-11-14**: a fresh 45-second compound-interest draft used the public Investor.gov compound-interest glossary through Gemini URL Context, generated six valid scenes with source-grounded narration, persisted immutable Revision 2, and displayed both the `Reference-grounded plan` notice and trusted `investor.gov` source link on the review screen. The test revision remains unapproved.
+- Live relevance-gate verification passed on **2026-11-14**: a compound-interest idea paired with an unrelated NASA eclipse reference was rejected with the user-facing mismatch message, the project returned safely to `DRAFT`, and no storyboard revision was created.
 - Hardened provider/database reliability with a 90-second single-attempt Gemini deadline, one-minute interrupted-job recovery, safe failure cleanup, transient MongoDB retries, and a 15-second Atlas cold-start selection window.
-- Adding/removing visual objects, changing templates or motion commands, and source-reference retrieval remain deferred to later Phase 4B slices.
+- Adding/removing visual objects and changing templates or raw motion commands remain intentionally deferred beyond the safe V1 storyboard editor.
 
 ## 5. Existing validated video POCs
 
@@ -202,7 +208,7 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 
 ## 10. Exact next action
 
-Implement the final Phase 4B slice: optional project source references, safe URL validation, source-aware storyboard generation, and clear reference visibility during review. Do not begin narration or rendering until this trust-and-review layer is complete.
+Begin Phase 5A with approved-revision narration generation: create an owner-scoped durable job, synthesize per-scene audio with ElevenLabs, store private audio assets, and provide an audio preview with retry-safe status before any Remotion video render begins.
 
 ## 11. Update protocol for future developers and agents
 

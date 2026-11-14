@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StoryboardActionButton } from "../../../../../components/storyboard-action-button";
 import { StoryboardEditor } from "../../../../../components/storyboard-editor";
+import { StoryboardReferenceEditor } from "../../../../../components/storyboard-reference-editor";
 import { StoryboardRevisionHistory } from "../../../../../components/storyboard-revision-history";
 import { StudioIcon } from "../../../../../components/studio-icon";
 import { StudioShell } from "../../../../../components/studio-shell";
@@ -15,6 +16,14 @@ function humanize(value: string) {
     .replace(/^./, (letter) => letter.toUpperCase());
 }
 
+function referenceHost(value: string) {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    return "Reference webpage";
+  }
+}
+
 export default async function StoryboardReviewPage({
   params,
   searchParams,
@@ -24,11 +33,14 @@ export default async function StoryboardReviewPage({
     approved?: string;
     selected?: string;
     edited?: string;
+    referenceChanged?: string;
+    combined?: string;
   }>;
 }) {
   const { session } = await requireStudioSession();
   const { projectId } = await params;
-  const { approved, selected, edited } = await searchParams;
+  const { approved, selected, edited, referenceChanged, combined } =
+    await searchParams;
   const [plan, revisions] = await Promise.all([
     getProjectPlan(session.user.id, projectId),
     listProjectStoryboardRevisions(session.user.id, projectId),
@@ -73,6 +85,31 @@ export default async function StoryboardReviewPage({
           </div>
         </div>
       ) : null}
+      {referenceChanged === "1" ? (
+        <div className="studio-success" role="status">
+          <span>↗</span>
+          <div>
+            <strong>Reference updated</strong>
+            <p>
+              The new source passed relevance checks and created Revision{" "}
+              {plan.revision}. Your earlier revision remains saved.
+            </p>
+          </div>
+        </div>
+      ) : null}
+      {combined === "1" ? (
+        <div className="studio-success" role="status">
+          <span>✓</span>
+          <div>
+            <strong>Reference and edits saved together</strong>
+            <p>
+              Revision {plan.revision} contains the regenerated source-grounded
+              plan and your compatible scene changes. Only one revision was
+              created.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="studio-breadcrumbs">
         <Link href="/dashboard">My Videos</Link>
@@ -98,16 +135,84 @@ export default async function StoryboardReviewPage({
         </span>
       </section>
 
+      <section
+        className="storyboard-command-bar"
+        aria-label="Storyboard actions"
+      >
+        <div>
+          <span className="studio-eyebrow">CURRENT REVIEW COPY</span>
+          <strong>Revision {plan.revision}</strong>
+          <small>
+            {revisions.length} saved revision{revisions.length === 1 ? "" : "s"}
+          </small>
+        </div>
+        <div className="storyboard-command-actions">
+          {plan.approvalStatus === "REVIEW_READY" ? (
+            <>
+              <StoryboardEditor
+                projectId={projectId}
+                versionId={plan.versionId}
+                contentHash={plan.contentHash}
+                revision={plan.revision}
+                nextRevision={plan.nextRevision}
+                scenes={plan.storyboard.scenes}
+                currentReference={plan.references[0]?.url}
+              />
+              <StoryboardActionButton
+                mode="approve"
+                projectId={projectId}
+                versionId={plan.versionId}
+                contentHash={plan.contentHash}
+                revision={plan.revision}
+                nextRevision={plan.nextRevision}
+              />
+            </>
+          ) : null}
+          <StoryboardRevisionHistory
+            projectId={projectId}
+            revisions={revisions}
+            currentRevision={plan.revision}
+            canSwitch={plan.project.status === "REVIEW_READY"}
+          />
+          {plan.approvalStatus === "REVIEW_READY" ? (
+            <details className="storyboard-more-actions">
+              <summary>More</summary>
+              <div>
+                <StoryboardActionButton
+                  mode="regenerate"
+                  projectId={projectId}
+                  variant="secondary"
+                  revision={plan.revision}
+                  nextRevision={plan.nextRevision}
+                />
+              </div>
+            </details>
+          ) : null}
+        </div>
+      </section>
+
       <div className="storyboard-review-layout">
         <main className="storyboard-scenes">
           <section className="storyboard-source-notice">
             <StudioIcon name="sparkles" />
             <div>
-              <strong>AI-generated plan</strong>
-              <p>
-                Verify factual claims before approval. Source-reference lookup
-                will be added in a later Phase 4 slice.
-              </p>
+              <strong>
+                {plan.references.length
+                  ? "Reference-grounded plan"
+                  : "AI-generated plan"}
+              </strong>
+              {plan.references.length ? (
+                <p>
+                  Motionly successfully read your trusted reference while
+                  creating this storyboard. Review the source and every scene
+                  before approval.
+                </p>
+              ) : (
+                <p>
+                  No reference was provided. Verify factual claims before
+                  approval.
+                </p>
+              )}
             </div>
           </section>
 
@@ -176,36 +281,45 @@ export default async function StoryboardReviewPage({
             </dl>
           </section>
 
-          {plan.approvalStatus === "REVIEW_READY" ? (
-            <div className="storyboard-review-actions">
-              <StoryboardActionButton
-                mode="approve"
+          <section className="storyboard-references">
+            <span className="studio-eyebrow">TRUSTED REFERENCE</span>
+            <h2>
+              {plan.references.length ? "Source used" : "No source added"}
+            </h2>
+            {plan.references.length ? (
+              <p>
+                This public webpage was available to the AI while it wrote the
+                storyboard.
+              </p>
+            ) : (
+              <p>
+                Add a trusted webpage to regenerate this storyboard with
+                source-grounded facts.
+              </p>
+            )}
+            {plan.references.length
+              ? plan.references.map(({ url }) => (
+                  <a key={url} href={url} target="_blank" rel="noreferrer">
+                    <span>↗</span>
+                    <span>
+                      <strong>{referenceHost(url)}</strong>
+                      <small>{url}</small>
+                    </span>
+                  </a>
+                ))
+              : null}
+            {plan.approvalStatus === "REVIEW_READY" ? (
+              <StoryboardReferenceEditor
                 projectId={projectId}
                 versionId={plan.versionId}
-                contentHash={plan.contentHash}
+                currentReference={plan.references[0]?.url}
                 revision={plan.revision}
                 nextRevision={plan.nextRevision}
               />
-              <StoryboardEditor
-                projectId={projectId}
-                versionId={plan.versionId}
-                contentHash={plan.contentHash}
-                revision={plan.revision}
-                nextRevision={plan.nextRevision}
-                scenes={plan.storyboard.scenes}
-              />
-              <StoryboardActionButton
-                mode="regenerate"
-                projectId={projectId}
-                variant="secondary"
-                revision={plan.revision}
-                nextRevision={plan.nextRevision}
-              />
-              <small>
-                Approval locks this revision. Regeneration creates a new one.
-              </small>
-            </div>
-          ) : (
+            ) : null}
+          </section>
+
+          {plan.approvalStatus === "APPROVED" ? (
             <div className="storyboard-approved-note">
               <span>✓</span>
               <div>
@@ -213,15 +327,6 @@ export default async function StoryboardReviewPage({
                 <p>Ready for the future narration and rendering phase.</p>
               </div>
             </div>
-          )}
-
-          {revisions.length > 1 ? (
-            <StoryboardRevisionHistory
-              projectId={projectId}
-              revisions={revisions}
-              currentRevision={plan.revision}
-              canSwitch={plan.project.status === "REVIEW_READY"}
-            />
           ) : null}
         </aside>
       </div>

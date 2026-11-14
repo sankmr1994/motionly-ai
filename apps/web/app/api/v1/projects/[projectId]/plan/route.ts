@@ -35,6 +35,13 @@ export async function POST(
         "The storyboard could not be generated right now.",
       );
     }
+    if (result.reason === "reference_not_relevant") {
+      return problem(
+        422,
+        "REFERENCE_NOT_RELEVANT",
+        "The reference does not appear to match the video idea.",
+      );
+    }
     return problem(
       409,
       result.reason === "already_planning"

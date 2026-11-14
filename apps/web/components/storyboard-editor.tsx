@@ -26,6 +26,7 @@ export function StoryboardEditor({
   revision,
   nextRevision,
   scenes,
+  currentReference,
 }: {
   projectId: string;
   versionId: string;
@@ -33,10 +34,12 @@ export function StoryboardEditor({
   revision: number;
   nextRevision: number;
   scenes: EditableScene[];
+  currentReference?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [reviewing, setReviewing] = useState(false);
   const [clientMessage, setClientMessage] = useState<string>();
+  const [referenceUrl, setReferenceUrl] = useState(currentReference ?? "");
   const [drafts, setDrafts] = useState(() =>
     scenes.map((scene, index) => ({
       ...scene,
@@ -45,6 +48,8 @@ export function StoryboardEditor({
   );
   const action = saveStoryboardEditsAction.bind(null, projectId);
   const [state, formAction, pending] = useActionState(action, initialState);
+  const referenceChanged =
+    referenceUrl.trim() !== (currentReference ?? "").trim();
 
   const changeSummary = useMemo(() => {
     let titleChanges = 0;
@@ -103,12 +108,17 @@ export function StoryboardEditor({
     );
     setReviewing(false);
     setClientMessage(undefined);
+    setReferenceUrl(currentReference ?? "");
     setOpen(true);
   }
 
   function reviewChanges() {
-    if (!changeSummary.changedScenes) {
-      setClientMessage("Change at least one scene before saving.");
+    if (!changeSummary.changedScenes && !referenceChanged) {
+      setClientMessage("Change at least one scene or replace the reference.");
+      return;
+    }
+    if (referenceChanged && !referenceUrl.trim()) {
+      setClientMessage("Enter a public HTTPS reference webpage.");
       return;
     }
     if (timingIssues.length) {
@@ -180,6 +190,11 @@ export function StoryboardEditor({
                   value={contentHash}
                 />
                 <input type="hidden" name="confirmation" value="SAVE_EDITS" />
+                <input
+                  type="hidden"
+                  name="referenceChanged"
+                  value={String(referenceChanged)}
+                />
 
                 <header className="storyboard-editor-header">
                   <div>
@@ -206,6 +221,41 @@ export function StoryboardEditor({
                 </header>
 
                 <div className="storyboard-editor-scenes" hidden={reviewing}>
+                  <section className="storyboard-edit-reference">
+                    <div>
+                      <span className="studio-eyebrow">TRUSTED REFERENCE</span>
+                      <h3>Reference webpage</h3>
+                      <p>
+                        If you replace this link, Motionly regenerates a
+                        temporary candidate, applies your scene edits, and saves
+                        everything together as one revision.
+                      </p>
+                    </div>
+                    <label>
+                      Public HTTPS webpage
+                      <input
+                        name="referenceUrl"
+                        type="url"
+                        inputMode="url"
+                        maxLength={2_048}
+                        value={referenceUrl}
+                        placeholder="https://example.org/trusted-article"
+                        onChange={(event) =>
+                          setReferenceUrl(event.target.value)
+                        }
+                      />
+                    </label>
+                    {referenceChanged ? (
+                      <div className="storyboard-edit-reference-notice">
+                        <strong>One combined revision</strong>
+                        <span>
+                          The new source will be checked before your edits are
+                          applied. Revision {revision} stays safe if anything
+                          fails.
+                        </span>
+                      </div>
+                    ) : null}
+                  </section>
                   {drafts.map((scene, index) => {
                     const wordCount = countNarrationWords(scene.narration);
                     const maximumWords = getNarrationWordLimit(
@@ -352,10 +402,17 @@ export function StoryboardEditor({
                       <dt>New revision</dt>
                       <dd>Revision {nextRevision}</dd>
                     </div>
+                    <div>
+                      <dt>Reference webpage</dt>
+                      <dd>
+                        {referenceChanged ? "Will be replaced" : "Unchanged"}
+                      </dd>
+                    </div>
                   </dl>
                   <p>
-                    Revision {revision} will remain available in revision
-                    history. The new revision must be reviewed and approved.
+                    {referenceChanged
+                      ? `Motionly will verify the new source, regenerate a temporary candidate, apply these edits, and create only Revision ${nextRevision}.`
+                      : `Revision ${revision} will remain available in revision history. The new revision must be reviewed and approved.`}
                   </p>
                 </section>
 
@@ -383,7 +440,9 @@ export function StoryboardEditor({
                       disabled={pending}
                     >
                       {pending
-                        ? "Saving revision…"
+                        ? referenceChanged
+                          ? "Checking source and creating revision…"
+                          : "Saving revision…"
                         : `Save as Revision ${nextRevision}`}
                     </button>
                   ) : (

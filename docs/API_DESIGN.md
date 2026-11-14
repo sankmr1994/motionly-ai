@@ -373,6 +373,11 @@ Topic-mode request:
   "title": "How Binary Search Works",
   "inputMode": "TOPIC",
   "topic": "How does binary search work?",
+  "references": [
+    {
+      "url": "https://example.org/trusted-article"
+    }
+  ],
   "video": {
     "width": 720,
     "height": 1280,
@@ -406,7 +411,14 @@ Validation:
 - Topic: 3–500 characters in topic mode.
 - Source script: 1–5,000 characters in script mode.
 - Exactly one of `topic` or `sourceScript` is accepted according to `inputMode`.
+- `references` is optional and accepts up to three unique public HTTPS webpage URLs. URLs with credentials, IP-literal hosts, localhost, or private/local host suffixes are rejected. The initial UI exposes one reference to keep the basic workflow simple.
 - V1 output dimensions, FPS, and style are allowlisted values.
+
+When references are present, storyboard planning enables Gemini URL Context and requires every submitted reference to be retrieved successfully. The provider must also return an explicit relevance assessment; an unrelated reference returns `422 REFERENCE_NOT_RELEVANT` and creates no storyboard revision. An unreadable, unsafe, or paywalled reference fails planning safely and restores the prior project state rather than silently generating an ungrounded storyboard.
+
+The review UI may replace its trusted reference through an authenticated server action using the current `versionId` as an optimistic-concurrency precondition. The replacement runs through the same retrieval, relevance, structured-generation, and schema-validation pipeline. Only a successful plan creates the next immutable revision and moves the project pointer; conflicts, identical URLs, retrieval failures, relevance failures, and generation failures preserve the current revision and reference.
+
+Storyboard editing also accepts an optional replacement reference. In this combined mode, the current content hash and version ID protect the base revision, the replacement source generates a temporary candidate, and only fields explicitly changed by the user are overlaid onto that candidate. The server validates the final storyboard and commits one new version. The temporary candidate is never exposed as a project revision, so a combined reference-and-text update increments the revision counter exactly once.
 
 Response: `201 Created`, project in `DRAFT`, `Location: /api/v1/projects/:id`.
 

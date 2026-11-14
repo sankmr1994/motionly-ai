@@ -72,6 +72,7 @@ export default async function CreateVideoPage({
                 id: draft.id,
                 inputMode: draft.inputMode,
                 content: draft.content,
+                referenceUrl: draft.references[0]?.url,
                 duration: draft.video.targetDurationSeconds,
               }
             : undefined

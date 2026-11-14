@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import {
   storyboardSchema,
   type ProjectInputMode,
+  type ProjectReference,
   type Storyboard,
   type VideoDefaults,
 } from "@motionly/shared";
@@ -152,6 +153,13 @@ export const geminiStoryboardResponseSchema = makeGeminiCompatibleSchema(
 
 const providerScenePlanSchema = z
   .object({
+    referenceAssessment: z
+      .object({
+        relevant: z.boolean(),
+        reason: z.string().min(1).max(240),
+      })
+      .strict()
+      .optional(),
     scenes: z
       .array(
         z
@@ -183,7 +191,7 @@ const providerScenePlanSchema = z
           })
           .strict(),
       )
-      .min(1)
+      .min(0)
       .max(10),
   })
   .strict();
@@ -197,7 +205,11 @@ type ProviderScenePlan = z.infer<typeof providerScenePlanSchema>;
 export class StoryboardGenerationError extends Error {
   constructor(
     public readonly code:
-      "PROVIDER_REQUEST_FAILED" | "EMPTY_RESPONSE" | "INVALID_RESPONSE",
+      | "PROVIDER_REQUEST_FAILED"
+      | "REFERENCE_RETRIEVAL_FAILED"
+      | "REFERENCE_NOT_RELEVANT"
+      | "EMPTY_RESPONSE"
+      | "INVALID_RESPONSE",
     public readonly status?: number,
     options?: ErrorOptions,
   ) {
@@ -209,6 +221,7 @@ export class StoryboardGenerationError extends Error {
 export type StoryboardGenerationInput = {
   inputMode: ProjectInputMode;
   content: string;
+  references: ProjectReference[];
   video: VideoDefaults;
 };
 
@@ -220,6 +233,15 @@ export type StoryboardGenerationResult = {
 };
 
 const normalizeScript = (value: string) => value.replace(/\s+/g, " ").trim();
+
+export function evaluateReferenceRelevance(
+  referenceCount: number,
+  assessment: ProviderScenePlan["referenceAssessment"],
+): "not_required" | "relevant" | "missing" | "not_relevant" {
+  if (referenceCount === 0) return "not_required";
+  if (!assessment) return "missing";
+  return assessment.relevant ? "relevant" : "not_relevant";
+}
 
 function splitScript(value: string, requestedParts: number): string[] {
   const words = normalizeScript(value).split(" ").filter(Boolean);
@@ -319,10 +341,20 @@ export const generateProjectStoryboard = async (
     input.inputMode === "SCRIPT"
       ? `Plan visuals for this user-supplied script. Motionly will preserve and split the original narration locally, so use narration only as a short scene summary:\n\n${input.content}`
       : `Create a clear beginner-friendly educational narration and storyboard for this idea:\n\n${input.content}`;
+  const referenceInstruction = input.references.length
+    ? `\nUse the URL Context tool to read these user-provided references. First decide whether they materially support the user's idea. If they are unrelated, set "referenceAssessment.relevant" to false, explain why in one simple sentence, and return an empty "scenes" array. If they are relevant, set it to true, ground factual claims in them, and do not invent claims that conflict with them:\n${input.references
+        .map(({ url }, index) => `${index + 1}. ${url}`)
+        .join("\n")}`
+    : "";
   const request = {
     contents: `Create a ${sceneCount}-scene vertical educational explainer plan.
-${inputInstruction}
-Return one JSON object with a "scenes" array. Every scene must contain exactly these fields: "title", "template", "narration", and "objects".
+${inputInstruction}${referenceInstruction}
+Return one JSON object with a "scenes" array. ${
+      input.references.length
+        ? 'Also return "referenceAssessment" with exactly "relevant" and "reason" fields.'
+        : "Do not return a referenceAssessment field."
+    }
+Every scene must contain exactly these fields: "title", "template", "narration", and "objects".
 Use one of these template values: TITLE, BULLET_LIST, TIMELINE, PROCESS, STAT_CARD, ICON_GRID, BEFORE_AFTER, DIAGRAM, COMPARISON, FORMULA, or GROWTH_CHART.
 The "objects" value must be an array of short visual labels. Do not calculate timing or animation actions; Motionly adds those locally.`,
     config: {
@@ -332,6 +364,7 @@ Use only declared template identifiers.
 Never emit executable code, HTML, JavaScript, URLs, or arbitrary component names.`,
       temperature: input.inputMode === "SCRIPT" ? 0.15 : 0.35,
       maxOutputTokens: 4_096,
+      ...(input.references.length ? { tools: [{ urlContext: {} }] } : {}),
     },
   };
 
@@ -367,11 +400,38 @@ Never emit executable code, HTML, JavaScript, URLs, or arbitrary component names
   if (!response?.text) {
     throw new StoryboardGenerationError("EMPTY_RESPONSE");
   }
+  if (input.references.length) {
+    const retrievals =
+      response.candidates?.[0]?.urlContextMetadata?.urlMetadata ?? [];
+    const allRetrieved =
+      retrievals.length >= input.references.length &&
+      retrievals.every(
+        ({ urlRetrievalStatus }) =>
+          urlRetrievalStatus === "URL_RETRIEVAL_STATUS_SUCCESS",
+      );
+    if (!allRetrieved) {
+      throw new StoryboardGenerationError("REFERENCE_RETRIEVAL_FAILED");
+    }
+  }
   let storyboard: Storyboard;
   try {
     const plan = providerScenePlanSchema.parse(parseJsonObject(response.text));
+    const relevance = evaluateReferenceRelevance(
+      input.references.length,
+      plan.referenceAssessment,
+    );
+    if (relevance === "missing") {
+      throw new StoryboardGenerationError("INVALID_RESPONSE");
+    }
+    if (relevance === "not_relevant") {
+      throw new StoryboardGenerationError("REFERENCE_NOT_RELEVANT");
+    }
+    if (!plan.scenes.length) {
+      throw new StoryboardGenerationError("INVALID_RESPONSE");
+    }
     storyboard = compileProviderPlan(input, plan);
   } catch (error) {
+    if (error instanceof StoryboardGenerationError) throw error;
     throw new StoryboardGenerationError("INVALID_RESPONSE", undefined, {
       cause: error,
     });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   approveProjectVersionRequestSchema,
+  changeProjectReferenceRequestSchema,
   createProjectRequestSchema,
   editProjectStoryboardRequestSchema,
   updateProjectRequestSchema,
@@ -24,6 +25,35 @@ describe("project contract", () => {
         video,
       }).success,
     ).toBe(true);
+  });
+
+  it("accepts a public HTTPS reference and rejects unsafe reference URLs", () => {
+    const draft = {
+      title: "How compound interest works",
+      inputMode: "TOPIC" as const,
+      topic: "Explain compound interest to a beginner",
+      video,
+    };
+    expect(
+      createProjectRequestSchema.safeParse({
+        ...draft,
+        references: [{ url: "https://www.investor.gov/compound-interest" }],
+      }).success,
+    ).toBe(true);
+    for (const url of [
+      "http://example.com/article",
+      "https://localhost:3000/private",
+      "https://127.0.0.1/private",
+      "https://[::1]/private",
+      "https://user:secret@example.com/article",
+    ]) {
+      expect(
+        createProjectRequestSchema.safeParse({
+          ...draft,
+          references: [{ url }],
+        }).success,
+      ).toBe(false);
+    }
   });
 
   it("accepts a script-mode draft", () => {
@@ -97,6 +127,15 @@ describe("storyboard edit contract", () => {
     ).toBe(true);
   });
 
+  it("accepts a safe reference as part of one combined edit revision", () => {
+    expect(
+      editProjectStoryboardRequestSchema.safeParse({
+        ...validEdit,
+        reference: { url: "https://www.investor.gov/compound-interest" },
+      }).success,
+    ).toBe(true);
+  });
+
   it("rejects duplicate scenes and missing confirmation", () => {
     expect(
       editProjectStoryboardRequestSchema.safeParse({
@@ -107,6 +146,31 @@ describe("storyboard edit contract", () => {
     expect(
       editProjectStoryboardRequestSchema.safeParse({
         ...validEdit,
+        confirmation: undefined,
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("storyboard reference change contract", () => {
+  it("requires a public HTTPS URL, current version, and explicit confirmation", () => {
+    const request = {
+      basedOnVersionId: "a".repeat(24),
+      reference: { url: "https://www.investor.gov/compound-interest" },
+      confirmation: "CHANGE_REFERENCE",
+    };
+    expect(changeProjectReferenceRequestSchema.safeParse(request).success).toBe(
+      true,
+    );
+    expect(
+      changeProjectReferenceRequestSchema.safeParse({
+        ...request,
+        reference: { url: "http://localhost:3000/private" },
+      }).success,
+    ).toBe(false);
+    expect(
+      changeProjectReferenceRequestSchema.safeParse({
+        ...request,
         confirmation: undefined,
       }).success,
     ).toBe(false);

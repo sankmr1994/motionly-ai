@@ -8,6 +8,7 @@ import {
   failProjectPlanning,
   type ProjectPlan,
 } from "@motionly/db";
+import type { EditProjectStoryboardRequest } from "@motionly/shared";
 import { logger } from "@motionly/observability";
 
 export type PlanProjectResult =
@@ -15,16 +16,28 @@ export type PlanProjectResult =
   | {
       ok: false;
       reason:
-        "not_found" | "not_ready" | "already_planning" | "generation_failed";
+        | "not_found"
+        | "not_ready"
+        | "already_planning"
+        | "conflict"
+        | "no_changes"
+        | "invalid_edits"
+        | "reference_not_relevant"
+        | "generation_failed";
     };
 
 export async function planProjectForOwner(
   ownerId: string,
   projectId: string,
+  options: {
+    referenceOverride?: Array<{ url: string }>;
+    expectedVersionId?: string;
+    storyboardEdits?: EditProjectStoryboardRequest;
+  } = {},
 ): Promise<PlanProjectResult> {
   let started: Awaited<ReturnType<typeof beginProjectPlanning>>;
   try {
-    started = await beginProjectPlanning(ownerId, projectId);
+    started = await beginProjectPlanning(ownerId, projectId, options);
   } catch {
     logger.error("storyboard_planning_start_failed", {
       projectId,
@@ -37,6 +50,7 @@ export async function planProjectForOwner(
     const generated = await generateProjectStoryboard({
       inputMode: started.input.inputMode,
       content: started.input.content,
+      references: started.input.references,
       video: started.input.video,
     });
     const plan = await completeProjectPlanning(
@@ -65,6 +79,13 @@ export async function planProjectForOwner(
         errorCode: "DATABASE_UNAVAILABLE",
       });
     }
-    return { ok: false, reason: "generation_failed" };
+    return {
+      ok: false,
+      reason:
+        error instanceof StoryboardGenerationError &&
+        error.code === "REFERENCE_NOT_RELEVANT"
+          ? "reference_not_relevant"
+          : "generation_failed",
+    };
   }
 }

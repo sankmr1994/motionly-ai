@@ -5,7 +5,10 @@ import {
   createEditedProjectStoryboardRevision,
   makeProjectStoryboardRevisionCurrent,
 } from "@motionly/db";
-import { editProjectStoryboardRequestSchema } from "@motionly/shared";
+import {
+  changeProjectReferenceRequestSchema,
+  editProjectStoryboardRequestSchema,
+} from "@motionly/shared";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -14,6 +17,50 @@ import { planProjectForOwner } from "../../../lib/project-planning";
 
 export type StoryboardActionState = { message?: string };
 export type StoryboardActionMode = "plan" | "regenerate" | "approve";
+
+const planningMessages = {
+  not_found: "This project was not found.",
+  not_ready: "This project cannot be planned in its current state.",
+  already_planning:
+    "The current storyboard attempt is still finishing. Please wait one minute, refresh, and retry.",
+  conflict: "This storyboard changed. Refresh and review the latest revision.",
+  no_changes: "Enter a different reference URL before regenerating.",
+  invalid_edits:
+    "These edits could not be applied to the regenerated storyboard. Review the fields and try again.",
+  reference_not_relevant:
+    "This reference does not appear to match your video idea. Replace the link or remove it, then try again.",
+  generation_failed:
+    "We could not create the storyboard right now. Your current revision is safe—please try again.",
+} as const;
+
+export async function changeStoryboardReferenceAction(
+  projectId: string,
+  _previousState: StoryboardActionState,
+  formData: FormData,
+): Promise<StoryboardActionState> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.emailVerified) redirect("/sign-in");
+  const parsed = changeProjectReferenceRequestSchema.safeParse({
+    basedOnVersionId: formData.get("basedOnVersionId"),
+    reference: { url: formData.get("referenceUrl") },
+    confirmation: formData.get("confirmation"),
+  });
+  if (!parsed.success) {
+    return {
+      message:
+        parsed.error.issues[0]?.message ??
+        "Enter a public HTTPS reference URL.",
+    };
+  }
+  const result = await planProjectForOwner(session.user.id, projectId, {
+    expectedVersionId: parsed.data.basedOnVersionId,
+    referenceOverride: [parsed.data.reference],
+  });
+  if (!result.ok) return { message: planningMessages[result.reason] };
+  revalidatePath("/dashboard");
+  revalidatePath(`/dashboard/projects/${projectId}/storyboard`);
+  redirect(`/dashboard/projects/${projectId}/storyboard?referenceChanged=1`);
+}
 
 export async function saveStoryboardEditsAction(
   projectId: string,
@@ -37,6 +84,9 @@ export async function saveStoryboardEditsAction(
   const parsed = editProjectStoryboardRequestSchema.safeParse({
     basedOnVersionId: formData.get("basedOnVersionId"),
     expectedContentHash: formData.get("expectedContentHash"),
+    ...(formData.get("referenceChanged") === "true"
+      ? { reference: { url: formData.get("referenceUrl") } }
+      : {}),
     confirmation: formData.get("confirmation"),
     scenes: sceneIds.map((id, index) => ({
       id,
@@ -50,6 +100,23 @@ export async function saveStoryboardEditsAction(
       message:
         parsed.error.issues[0]?.message ?? "Review the edited scene fields.",
     };
+  }
+  if (parsed.data.reference) {
+    const combinedResult = await planProjectForOwner(
+      session.user.id,
+      projectId,
+      {
+        expectedVersionId: parsed.data.basedOnVersionId,
+        referenceOverride: [parsed.data.reference],
+        storyboardEdits: parsed.data,
+      },
+    );
+    if (!combinedResult.ok) {
+      return { message: planningMessages[combinedResult.reason] };
+    }
+    revalidatePath("/dashboard");
+    revalidatePath(`/dashboard/projects/${projectId}/storyboard`);
+    redirect(`/dashboard/projects/${projectId}/storyboard?combined=1`);
   }
   const result = await createEditedProjectStoryboardRevision(
     session.user.id,
@@ -135,15 +202,7 @@ export async function storyboardWorkflowAction(
 
   const result = await planProjectForOwner(session.user.id, projectId);
   if (!result.ok) {
-    const messages = {
-      not_found: "This project was not found.",
-      not_ready: "This project cannot be planned in its current state.",
-      already_planning:
-        "The current storyboard attempt is still finishing. Please wait one minute, refresh, and retry.",
-      generation_failed:
-        "We could not create the storyboard right now. Your draft is safe—please try again.",
-    } as const;
-    return { message: messages[result.reason] };
+    return { message: planningMessages[result.reason] };
   }
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/projects/${projectId}/storyboard`);

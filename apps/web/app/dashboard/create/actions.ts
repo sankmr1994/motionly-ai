@@ -36,6 +36,7 @@ export async function saveProjectDraft(
   const inputMode = String(formData.get("inputMode") ?? "TOPIC");
   const projectId = String(formData.get("projectId") ?? "").trim();
   const content = String(formData.get("content") ?? "").trim();
+  const referenceUrl = String(formData.get("referenceUrl") ?? "").trim();
   const duration = Number(formData.get("duration") ?? 45);
   const video = {
     width: 720 as const,
@@ -50,12 +51,14 @@ export async function saveProjectDraft(
           title: createTitle(content),
           inputMode: "SCRIPT" as const,
           sourceScript: content,
+          ...(referenceUrl ? { references: [{ url: referenceUrl }] } : {}),
           video,
         }
       : {
           title: createTitle(content),
           inputMode: "TOPIC" as const,
           topic: content,
+          ...(referenceUrl ? { references: [{ url: referenceUrl }] } : {}),
           video,
         };
   const result = createProjectRequestSchema.safeParse(candidate);

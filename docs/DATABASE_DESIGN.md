@@ -246,7 +246,10 @@ Immutable snapshots of user-reviewed content and render configuration.
   source: {
     inputMode: "TOPIC",
     topic: "How does binary search work?",
-    sourceScript: undefined
+    sourceScript: undefined,
+    references: [
+      { url: "https://example.org/trusted-article" }
+    ]
   },
   script: "Binary search finds a value in sorted data...",
   storyboard: {
@@ -301,10 +304,17 @@ db.projectVersions.createIndex({ "approval.approvedAt": 1 }, { sparse: true });
 - Selecting an earlier storyboard changes only `projects.currentVersionId`; it never copies or mutates a `projectVersions` document.
 - Approval metadata may be added atomically but never removed or changed.
 - Rendering always references a specific version ID, never "latest".
+- User-provided reference URLs are immutable source data. They participate in draft and planned content hashes, persist through regeneration and editing, and remain visible with the reviewed version.
 
 Revision selection runs in a transaction: validate the owner-scoped `REVIEW_READY` project and target version, then compare-and-set `projects.currentVersionId`. `revisionCounter` remains unchanged, so the next regeneration receives the next unused revision number even when its base is an older version.
 
 Storyboard editing also runs in a transaction. The server compares the current version ID and content hash, applies only allowlisted text fields and visual-label renames to the immutable source storyboard, synchronizes matching action targets, validates schema and narration timing, increments `revisionCounter`, inserts the edited version, and advances `currentVersionId`. Stale, invalid, cross-owner, approved, and no-op edits do not create a revision.
+
+Reference retrieval is provider-managed through Gemini URL Context, so the application stores the submitted public URL but never downloads arbitrary webpage content into MongoDB. Planning succeeds only when the provider reports successful retrieval and an explicit relevant-to-idea assessment. Unreadable or unrelated references leave the immutable draft intact, create no storyboard revision, and restore the prior project status.
+
+Reference replacement is staged on the active planning job as `referenceOverride`; it does not mutate the source version. The override is copied into the newly generated immutable version only after planning and validation complete successfully. Failed or stale jobs restore the prior project status and leave `currentVersionId` and the earlier version's source unchanged.
+
+For a combined reference-and-storyboard edit, `planningJobs.editPatches` stores only the title, narration, or visual-label fields that differ from the base revision. The regenerated candidate remains transient. Completion overlays those patches, validates the complete storyboard, and atomically inserts one new `projectVersions` document while advancing `currentVersionId` and `revisionCounter` once. Incompatible patches fail the job without persisting the candidate or consuming a revision number.
 
 ## 8. `planningJobs`
 

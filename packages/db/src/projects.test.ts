@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyStoryboardEditPatches,
   buildOwnedProjectsFilter,
   compileStoryboardEdits,
+  deriveStoryboardEditPatches,
   getPlanningReadiness,
   getRevisionSelectionReadiness,
+  resolvePlanningReferences,
 } from "./projects";
 import { solarEclipseStoryboard } from "@motionly/shared/fixtures/solar-eclipse";
 
@@ -42,6 +45,28 @@ describe("project planning readiness", () => {
     expect(getPlanningReadiness("PLANNING")).toBe("already_planning");
     expect(getPlanningReadiness("APPROVED")).toBe("not_ready");
     expect(getPlanningReadiness("ARCHIVED")).toBe("not_ready");
+  });
+});
+
+describe("planning reference resolution", () => {
+  const current = [{ url: "https://example.org/current" }];
+
+  it("keeps the current immutable source when no replacement is requested", () => {
+    expect(resolvePlanningReferences(current)).toEqual({
+      references: current,
+      changed: false,
+    });
+  });
+
+  it("detects a replacement while rejecting an identical reference", () => {
+    const replacement = [{ url: "https://example.org/replacement" }];
+    expect(resolvePlanningReferences(current, replacement)).toEqual({
+      references: replacement,
+      changed: true,
+    });
+    expect(resolvePlanningReferences(current, [...current]).changed).toBe(
+      false,
+    );
   });
 });
 
@@ -105,5 +130,28 @@ describe("storyboard text edit compiler", () => {
     if (firstAction.type !== "SHOW") return;
     expect(firstAction.targets).toContain("bright sun");
     expect(firstAction.targets).not.toContain(originalObject);
+  });
+
+  it("overlays only user changes onto a regenerated reference candidate", () => {
+    const revised = structuredClone(edits);
+    revised[0]!.title = "A user-written title";
+    const derived = deriveStoryboardEditPatches(
+      solarEclipseStoryboard,
+      revised,
+    );
+    expect(derived.ok).toBe(true);
+    if (!derived.ok) return;
+
+    const candidate = structuredClone(solarEclipseStoryboard);
+    candidate.scenes[0]!.title = "New reference-generated title";
+    candidate.scenes[0]!.narration =
+      "This narration was grounded in the replacement reference.";
+    const applied = applyStoryboardEditPatches(candidate, derived.patches);
+    expect(applied.ok).toBe(true);
+    if (!applied.ok) return;
+    expect(applied.storyboard.scenes[0]!.title).toBe("A user-written title");
+    expect(applied.storyboard.scenes[0]!.narration).toBe(
+      "This narration was grounded in the replacement reference.",
+    );
   });
 });

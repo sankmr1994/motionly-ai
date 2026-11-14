@@ -28,9 +28,59 @@ export const videoDefaultsSchema = z
   })
   .strict();
 
+const blockedReferenceHost = (hostname: string) => {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  return (
+    normalized === "localhost" ||
+    normalized.endsWith(".localhost") ||
+    normalized.endsWith(".local") ||
+    normalized.endsWith(".internal") ||
+    normalized.endsWith(".lan") ||
+    /^\d{1,3}(?:\.\d{1,3}){3}$/.test(normalized) ||
+    normalized.includes(":")
+  );
+};
+
+export const projectReferenceSchema = z
+  .object({
+    url: z
+      .string()
+      .trim()
+      .min(1)
+      .max(2_048)
+      .refine((value) => {
+        try {
+          const parsed = new URL(value);
+          return (
+            parsed.protocol === "https:" &&
+            !parsed.username &&
+            !parsed.password &&
+            !blockedReferenceHost(parsed.hostname)
+          );
+        } catch {
+          return false;
+        }
+      }, "Enter a public HTTPS webpage URL."),
+  })
+  .strict();
+
+export const projectReferencesSchema = z
+  .array(projectReferenceSchema)
+  .max(3)
+  .superRefine((references, context) => {
+    const urls = references.map(({ url }) => url.toLowerCase());
+    if (new Set(urls).size !== urls.length) {
+      context.addIssue({
+        code: "custom",
+        message: "Reference URLs must be unique.",
+      });
+    }
+  });
+
 const projectBaseSchema = z.object({
   title: z.string().trim().min(1).max(120),
   video: videoDefaultsSchema,
+  references: projectReferencesSchema.optional(),
 });
 
 export const createProjectRequestSchema = z.discriminatedUnion("inputMode", [
@@ -72,6 +122,14 @@ export const makeProjectVersionCurrentRequestSchema = z
   .object({ confirmation: z.literal("MAKE_CURRENT") })
   .strict();
 
+export const changeProjectReferenceRequestSchema = z
+  .object({
+    basedOnVersionId: z.string().regex(/^[a-f0-9]{24}$/),
+    reference: projectReferenceSchema,
+    confirmation: z.literal("CHANGE_REFERENCE"),
+  })
+  .strict();
+
 export const editedStoryboardSceneSchema = z
   .object({
     id: z.string().regex(/^scene_[0-9]{2}$/),
@@ -85,6 +143,7 @@ export const editProjectStoryboardRequestSchema = z
   .object({
     basedOnVersionId: z.string().regex(/^[a-f0-9]{24}$/),
     expectedContentHash: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+    reference: projectReferenceSchema.optional(),
     scenes: z.array(editedStoryboardSceneSchema).min(1).max(10),
     confirmation: z.literal("SAVE_EDITS"),
   })
@@ -108,9 +167,13 @@ export type ApproveProjectVersionRequest = z.infer<
 export type MakeProjectVersionCurrentRequest = z.infer<
   typeof makeProjectVersionCurrentRequestSchema
 >;
+export type ChangeProjectReferenceRequest = z.infer<
+  typeof changeProjectReferenceRequestSchema
+>;
 export type EditProjectStoryboardRequest = z.infer<
   typeof editProjectStoryboardRequestSchema
 >;
 export type ProjectInputMode = z.infer<typeof projectInputModeSchema>;
 export type ProjectStatus = z.infer<typeof projectStatusSchema>;
+export type ProjectReference = z.infer<typeof projectReferenceSchema>;
 export type VideoDefaults = z.infer<typeof videoDefaultsSchema>;

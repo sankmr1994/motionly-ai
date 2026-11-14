@@ -13,6 +13,7 @@ type EditableDraft = {
   id: string;
   inputMode: "TOPIC" | "SCRIPT";
   content: string;
+  referenceUrl?: string;
   duration: 30 | 45 | 60;
 };
 
@@ -22,12 +23,17 @@ export function CreateProjectForm({ draft }: { draft?: EditableDraft }) {
   );
   const [duration, setDuration] = useState<number>(draft?.duration ?? 45);
   const [content, setContent] = useState(draft?.content ?? "");
+  const [referenceUrl, setReferenceUrl] = useState(draft?.referenceUrl ?? "");
+  const [showReference, setShowReference] = useState(
+    Boolean(draft?.referenceUrl),
+  );
   const [state, action, pending] = useActionState(
     saveProjectDraft,
     initialState,
   );
   const contentError =
     state.fieldErrors?.topic?.[0] ?? state.fieldErrors?.sourceScript?.[0];
+  const referenceError = state.fieldErrors?.references?.[0];
 
   return (
     <form className="create-project-form" action={action}>
@@ -94,6 +100,62 @@ export function CreateProjectForm({ draft }: { draft?: EditableDraft }) {
             {contentError}
           </p>
         ) : null}
+
+        <section className="create-reference">
+          {!showReference ? (
+            <button
+              type="button"
+              className="create-reference-trigger"
+              onClick={() => setShowReference(true)}
+            >
+              <span>+</span>
+              <span>
+                <strong>Add a trusted reference</strong>
+                <small>
+                  Optional · helps Motionly follow a specific webpage
+                </small>
+              </span>
+            </button>
+          ) : (
+            <div className="create-reference-field">
+              <div>
+                <label htmlFor="reference-url">Trusted reference</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReferenceUrl("");
+                    setShowReference(false);
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+              <input
+                id="reference-url"
+                name="referenceUrl"
+                type="url"
+                inputMode="url"
+                maxLength={2048}
+                placeholder="https://example.org/trusted-article"
+                value={referenceUrl}
+                onChange={(event) => setReferenceUrl(event.target.value)}
+                aria-describedby="reference-help reference-error"
+                aria-invalid={Boolean(referenceError)}
+                required
+              />
+              <p id="reference-help">
+                Motionly will read this public HTTPS page and use it when
+                writing factual claims. You can review the source with the
+                storyboard.
+              </p>
+              {referenceError ? (
+                <p id="reference-error" className="create-error">
+                  {referenceError}
+                </p>
+              ) : null}
+            </div>
+          )}
+        </section>
 
         <div className="prompt-guidance">
           <span>PROMPT HELPERS</span>
