@@ -1,5 +1,4 @@
-import type { Storyboard } from "@motionly/shared";
-import { compileTimeline } from "@motionly/shared";
+import type { CaptionStyle, Storyboard } from "@motionly/shared";
 import {
   AbsoluteFill,
   Audio,
@@ -15,12 +14,16 @@ import {
 } from "./BinarySearchVisual";
 import { EclipseView } from "./EclipseView";
 import { FinanceVisual, type FinanceMode } from "./FinanceVisual";
+import { GenericVisual } from "./GenericVisual";
 import { colors } from "./theme";
 
 export type MotionlyExplainerProps = {
   storyboard: Storyboard;
   audioFile?: string;
   audioPlaybackRate?: number;
+  sceneAudioFiles?: Record<string, string>;
+  sceneDurationsSeconds?: Record<string, number>;
+  captionStyle?: CaptionStyle;
   captions?: CaptionCue[];
 };
 
@@ -36,11 +39,13 @@ const Scene = ({
   index,
   sceneFromFrame,
   captions,
+  captionStyle,
 }: {
   storyboard: Storyboard;
   index: number;
   sceneFromFrame: number;
   captions?: CaptionCue[];
+  captionStyle: CaptionStyle;
 }) => {
   const scene = storyboard.scenes[index]!;
   const frame = useCurrentFrame();
@@ -59,8 +64,8 @@ const Scene = ({
   const sceneCaptions = captions?.filter(
     (caption) =>
       caption.sceneId === scene.id &&
-      globalFrame >= caption.startFrame - 5 &&
-      globalFrame < caption.endFrame + 5,
+      globalFrame >= caption.startFrame &&
+      globalFrame < caption.endFrame,
   );
 
   return (
@@ -117,9 +122,14 @@ const Scene = ({
         ) : ["NUMBER_FLOW", "FORMULA", "GROWTH_CHART", "COMPARISON"].includes(
             scene.template,
           ) ? (
-          <FinanceVisual mode={scene.template as FinanceMode} />
-        ) : (
+          <FinanceVisual
+            mode={scene.template as FinanceMode}
+            labels={scene.objects}
+          />
+        ) : ["DIAGRAM", "SHADOW_DIAGRAM"].includes(scene.template) ? (
           <CelestialDiagram mode={mode} />
+        ) : (
+          <GenericVisual scene={scene} />
         )}
       </div>
       <div
@@ -140,31 +150,29 @@ const Scene = ({
         <div style={{ height: "100%", position: "relative" }}>
           {captions ? (
             sceneCaptions?.map((caption) => {
+              const captionDurationFrames =
+                caption.endFrame - caption.startFrame;
               const fadeFrames = Math.min(
                 5,
-                Math.max(
-                  1,
-                  Math.floor((caption.endFrame - caption.startFrame) / 3),
-                ),
+                Math.max(1, Math.floor(captionDurationFrames / 3)),
               );
-              const captionOpacity = interpolate(
-                globalFrame,
-                [
-                  caption.startFrame - fadeFrames,
-                  caption.startFrame,
-                  caption.endFrame - fadeFrames,
-                  caption.endFrame,
-                ],
-                [0, 1, 1, 0],
-                { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
-              );
-              const translateY = interpolate(
-                globalFrame,
-                [caption.startFrame - fadeFrames, caption.startFrame],
-                [8, 0],
-                { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
-              );
-
+              const captionOpacity =
+                captionDurationFrames <= 2
+                  ? 1
+                  : interpolate(
+                      globalFrame,
+                      [
+                        caption.startFrame,
+                        caption.startFrame + fadeFrames,
+                        caption.endFrame - fadeFrames,
+                        caption.endFrame,
+                      ],
+                      [0, 1, 1, 0],
+                      {
+                        extrapolateLeft: "clamp",
+                        extrapolateRight: "clamp",
+                      },
+                    );
               return (
                 <div
                   key={`${caption.startFrame}-${caption.text}`}
@@ -174,7 +182,13 @@ const Scene = ({
                     inset: 0,
                     opacity: captionOpacity,
                     position: "absolute",
-                    transform: `translateY(${translateY}px)`,
+                    justifyContent: "center",
+                    textAlign: "center",
+                    color: captionStyle === "KARAOKE" ? colors.accent : "#fff",
+                    fontSize: captionStyle === "BOLD" ? 33 : 31,
+                    fontWeight: captionStyle === "MINIMAL" ? 650 : 850,
+                    textTransform:
+                      captionStyle === "BOLD" ? "uppercase" : "none",
                   }}
                 >
                   {caption.text}
@@ -198,29 +212,49 @@ export const MotionlyExplainer = ({
   storyboard,
   audioFile,
   audioPlaybackRate = 1,
+  sceneAudioFiles,
+  sceneDurationsSeconds,
+  captionStyle = "KARAOKE",
   captions,
 }: MotionlyExplainerProps) => {
-  const timeline = compileTimeline(storyboard);
+  let fromFrame = 0;
+  const timeline = storyboard.scenes.map((scene) => {
+    const durationInFrames = Math.max(
+      1,
+      Math.ceil(
+        (sceneDurationsSeconds?.[scene.id] ?? scene.durationEstimateSeconds) *
+          storyboard.video.fps,
+      ),
+    );
+    const compiled = { ...scene, fromFrame, durationInFrames };
+    fromFrame += durationInFrames;
+    return compiled;
+  });
   return (
     <AbsoluteFill>
       {audioFile ? (
         <Audio src={staticFile(audioFile)} playbackRate={audioPlaybackRate} />
       ) : null}
-      {timeline.map((scene, index) => (
-        <Sequence
-          key={scene.id}
-          from={scene.fromFrame}
-          durationInFrames={scene.durationInFrames}
-          premountFor={30}
-        >
-          <Scene
-            storyboard={storyboard}
-            index={index}
-            sceneFromFrame={scene.fromFrame}
-            captions={captions}
-          />
-        </Sequence>
-      ))}
+      {timeline.map((scene, index) => {
+        const sceneAudioFile = sceneAudioFiles?.[scene.id];
+        return (
+          <Sequence
+            key={scene.id}
+            from={scene.fromFrame}
+            durationInFrames={scene.durationInFrames}
+            premountFor={30}
+          >
+            {sceneAudioFile ? <Audio src={staticFile(sceneAudioFile)} /> : null}
+            <Scene
+              storyboard={storyboard}
+              index={index}
+              sceneFromFrame={scene.fromFrame}
+              captions={captions}
+              captionStyle={captionStyle}
+            />
+          </Sequence>
+        );
+      })}
     </AbsoluteFill>
   );
 };

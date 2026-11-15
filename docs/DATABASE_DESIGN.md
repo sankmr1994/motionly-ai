@@ -452,6 +452,58 @@ db.narrationJobs.createIndex(
 );
 ```
 
+### Implemented local `renderJobs`
+
+Phases 5C and 6 use a focused durable collection for the current local rendering adapter. This is the implemented precursor to the broader production `generationJobs` design below.
+
+```js
+{
+  _id: ObjectId("..."),
+  ownerId: "better-auth-user-id",
+  projectId: ObjectId("..."),
+  versionId: ObjectId("..."),
+  narrationJobId: ObjectId("..."),
+  revision: 3,
+  inputHash: "sha256-hex",
+  captionVersion: 2,
+  captionStyle: "KARAOKE",
+  status: "RENDERING" | "COMPLETED" | "FAILED",
+  progress: 5,
+  attempt: 1,
+  output: {
+    assetKey: "opaque-private-key",
+    mimeType: "video/mp4",
+    byteLength: 1234567,
+    durationSeconds: 47.6,
+    width: 720,
+    height: 1280,
+    fps: 30
+  },
+  review: {
+    status: "PENDING" | "APPROVED",
+    approvedAt: ISODate("...")
+  },
+  error: undefined,
+  createdAt: ISODate("..."),
+  startedAt: ISODate("..."),
+  updatedAt: ISODate("..."),
+  completedAt: ISODate("..."),
+  schemaVersion: "1"
+}
+```
+
+`inputHash` binds the render to the immutable approved content hash, narration job, and caption version. Completed matches are reused, live matches are blocked, and stale active jobs become retryable failures. MP4 bytes remain outside MongoDB under the opaque `assetKey`; downloads are authorized through `review.status`.
+
+```js
+db.renderJobs.createIndex({ ownerId: 1, createdAt: -1, _id: -1 });
+db.renderJobs.createIndex({ ownerId: 1, projectId: 1, createdAt: -1 });
+db.renderJobs.createIndex({ ownerId: 1, versionId: 1, status: 1 });
+db.renderJobs.createIndex(
+  { ownerId: 1, projectId: 1, inputHash: 1, status: 1 },
+  { unique: true, partialFilterExpression: { status: "RENDERING" } },
+);
+```
+
 ## 9. `generationJobs`
 
 ### 9.1 Purpose

@@ -47,7 +47,13 @@ const MoneyCard = ({
   </g>
 );
 
-export const FinanceVisual = ({ mode }: { mode: FinanceMode }) => {
+export const FinanceVisual = ({
+  mode,
+  labels = [],
+}: {
+  mode: FinanceMode;
+  labels?: string[];
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const enter = (delay = 0) =>
@@ -155,6 +161,9 @@ export const FinanceVisual = ({ mode }: { mode: FinanceMode }) => {
 
   if (mode === "GROWTH_CHART") {
     const bars = [100, 210, 331];
+    const points = bars
+      .map((height, index) => `${198 + index * 175},${470 - height}`)
+      .join(" ");
     return (
       <svg
         viewBox="0 0 720 650"
@@ -170,6 +179,17 @@ export const FinanceVisual = ({ mode }: { mode: FinanceMode }) => {
           stroke={colors.muted}
           strokeWidth="3"
         />
+        <polyline
+          points={points}
+          fill="none"
+          stroke={colors.accent}
+          strokeWidth="6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray="700"
+          strokeDashoffset={700 * (1 - progress)}
+          opacity="0.78"
+        />
         {bars.map((height, index) => {
           const animatedHeight = height * enter(index * 7);
           return (
@@ -184,14 +204,20 @@ export const FinanceVisual = ({ mode }: { mode: FinanceMode }) => {
               />
               <text
                 x={198 + index * 175}
-                y={545}
+                y={542}
                 textAnchor="middle"
                 fill={colors.ink}
-                fontSize="23"
+                fontSize="17"
                 fontWeight="700"
               >
-                Year {index + 1}
+                {labels[index] ?? `Year ${index + 1}`}
               </text>
+              <circle
+                cx={198 + index * 175}
+                cy={470 - animatedHeight}
+                r={8 + Math.sin((frame + index * 8) / 7) * 2}
+                fill={colors.accent}
+              />
               <text
                 x={198 + index * 175}
                 y={475 - animatedHeight}
@@ -254,7 +280,7 @@ export const FinanceVisual = ({ mode }: { mode: FinanceMode }) => {
         fontSize="24"
         fontWeight="800"
       >
-        Compound
+        {labels[1] ?? "Compound"}
       </text>
       <text
         x="450"
@@ -263,7 +289,7 @@ export const FinanceVisual = ({ mode }: { mode: FinanceMode }) => {
         fontSize="24"
         fontWeight="800"
       >
-        Simple
+        {labels[0] ?? "Simple"}
       </text>
       <text
         x="360"
@@ -272,7 +298,7 @@ export const FinanceVisual = ({ mode }: { mode: FinanceMode }) => {
         fill={colors.muted}
         fontSize="23"
       >
-        Time invested
+        {labels[2] ?? "Time invested"}
       </text>
     </svg>
   );

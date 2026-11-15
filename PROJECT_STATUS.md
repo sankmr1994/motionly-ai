@@ -3,8 +3,8 @@
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
 Last updated: **2026-11-14**
-Current implementation phase: **Phase 5B — Caption timing, editing, and approval implemented locally**
-Next planned phase: **Phase 5C — Deterministic visual timeline and video rendering**
+Current implementation phase: **Phases 5C and 6 — Video rendering and finished-video review implemented locally**
+Next planned phase: **Phase 7 — Manual Instagram publishing foundation**
 
 ## 1. Product summary
 
@@ -23,8 +23,8 @@ V1 is creator-first and Instagram-first. Billing, subscriptions, payments, and i
 | Phase 2                  | Email/password authentication, verification, recovery, and onboarding            | Core flow implemented; live recovery delivery check remains                                     |
 | Phase 3                  | Dashboard and project management                                                 | Complete and product-owner approved                                                             |
 | Phase 4                  | Idea-to-storyboard workflow                                                      | Complete: generation, references, revision history, editing, review, regeneration, and approval |
-| Phase 5                  | Production video-generation pipeline                                             | Phase 5A narration complete; Phase 5B caption review implemented; rendering pending             |
-| Phase 6                  | Completed-video experience                                                       | Designed; not implemented                                                                       |
+| Phase 5                  | Production video-generation pipeline                                             | Local pipeline complete: narration, captions, deterministic timeline, and MP4 rendering         |
+| Phase 6                  | Completed-video experience                                                       | Implemented locally: playback, confirmation, approval, and protected MP4 download               |
 | Phase 7                  | Manual Instagram publishing and one-time scheduling                              | Designed; not implemented                                                                       |
 | Phase 8                  | Recurring content generation and publishing                                      | Designed; not implemented                                                                       |
 | Phase 9                  | Production hardening and launch                                                  | Not started                                                                                     |
@@ -157,6 +157,20 @@ Product UI and interaction guardrails confirmed during Phase 5B:
 - Timed previews must display content only inside the authoritative cue interval. Silence and timing gaps remain visually empty instead of falling back to an earlier or default caption.
 - Future workflow steps must keep the next primary action visible without requiring the user to scroll to the bottom of a long page.
 
+Phases 5C and 6 video rendering and review implemented on **2026-11-14**:
+
+- Added deterministic render compilation that combines the exact approved storyboard, completed per-scene narration assets, and approved caption cues. Each scene expands to the greater of its planned duration or actual narration duration so speech is never cut off.
+- Added a registered generic visual fallback for allowlisted storyboard templates while preserving the existing specialized binary-search, finance, eclipse, and diagram compositions. Model output remains validated data and is never executed as code.
+- Added durable owner-scoped `renderJobs` with input hashing, completed-render reuse, active-render blocking, interrupted-job recovery, retryable safe failures, progress, output metadata, and finished-video approval state.
+- Added ignored private local MP4 storage, authenticated owner-scoped byte-range streaming, and an approval-gated download response. Raw storage paths are not exposed.
+- Added a visible `Generate video` handoff after caption approval, automatic render-status refresh, compact failure/retry handling, a private 9:16 finished-video player, output summary, approval confirmation, and MP4 download after approval.
+- Upgraded the generic visual layer after product-owner review: title scenes use an animated concept orbit, definition scenes use a connected value flow, lists use readable staggered milestones, processes use moving pipeline indicators, and finance charts use source labels plus animated growth paths. This also fixes invisible white-on-white labels that previously left only `01`, `02`, and `03` markers visible.
+- Replaced coarse fixed render progress with Remotion renderer callbacks. Durable job progress now follows actual bundling, frame rendering, encoding, and muxing from 5–99%, then moves to 100% only after the MP4 is safely recorded.
+- Versioned the deterministic render pipeline so an older completed video is not silently reused after a motion-system upgrade. The review page offers `Render improved video` when its saved output came from an earlier pipeline.
+- Added and applied migration `004-render-job-indexes` plus deterministic render-timeline/readiness regression tests. Automated verification passed with all workspace type checks, all **49** tests, and the optimized Next.js production build.
+- Per the product owner's standing preference, signed-in browser QA and a live MP4 render were not run automatically. The first product-owner-triggered local render remains the final runtime confirmation for the installed browser/codec environment.
+- Local request-triggered background execution and local media storage are development adapters. Inngest execution and private Cloudflare R2 storage remain required before production deployment.
+
 ## 5. Existing validated video POCs
 
 The repository already proves the deterministic rendering approach with three narrated vertical videos:
@@ -230,13 +244,13 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 - MongoDB Atlas is configured and connectivity-tested locally; production deployment configuration remains deferred.
 - Remotion licensing must be confirmed before commercial production launch.
 - The production Gemini model remains environment-configurable. Live account verification currently supports and uses `gemini-3.5-flash-lite`; `gemini-2.5-flash-lite` is listed by the API but rejects new users and must not be selected.
-- Better Auth, project repositories, durable local narration jobs, and caption review snapshots are wired. Inngest execution, R2 storage, and Sentry remain deferred to their planned production-hardening slices.
+- Better Auth, project repositories, durable local narration/render jobs, caption review snapshots, and private local media streaming are wired. Inngest execution, R2 storage, and Sentry remain deferred to their planned production-hardening slices.
 - Instagram publishing requires an eligible Creator or Business account and Meta app review; it is design-only today.
-- Stitch screens 01–18 are approved. The public homepage is implemented; authenticated product screens remain design-only.
+- Stitch screens 01–18 are approved. The public homepage and authenticated workflow through finished-video review are implemented; Instagram publishing and scheduling screens remain design-only.
 
 ## 10. Exact next action
 
-Begin Phase 5C by compiling the approved storyboard, narration assets, and approved caption timeline into a deterministic Remotion render input; render the first private vertical MP4 without allowing model-generated executable code.
+Begin Phase 7 with the manual Instagram publishing foundation: connect an eligible Creator or Business account, retain review-before-publish as the default, and publish only a user-approved completed video.
 
 ## 11. Update protocol for future developers and agents
 

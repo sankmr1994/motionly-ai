@@ -670,6 +670,30 @@ Rules:
 - Caption approval creates no storyboard revision and does not regenerate narration.
 - Each scene compares actual audio duration with planned storyboard duration. More than 0.5 seconds of overrun is surfaced as a review warning.
 
+### 14.10 Render and review the finished video
+
+Phases 5C and 6 add the authenticated product screens:
+
+```http
+GET /dashboard/projects/:projectId/video
+GET /api/v1/projects/:projectId/renders/:jobId/video
+Range: bytes=0-
+```
+
+Render start and finished-video approval use protected server actions. The server derives owner identity from the verified session and rereads all render inputs from owner-scoped records; clients never submit storyboard content, storage keys, or approval state as authoritative values.
+
+Rules:
+
+- Rendering requires the exact current approved project version, completed narration, and approved captions.
+- The render input hash combines the immutable approved content hash, narration job, and caption version. A completed matching render is reused; a live matching render is not duplicated.
+- Scene duration is the greater of planned scene duration and actual narration duration. Caption frames are bounded to their scene and display only inside exact cue intervals.
+- The local development worker renders H.264 MP4 through the registered `MotionlyExplainer` Remotion composition. Production must move execution to Inngest and media to private R2.
+- Render progress is derived from Remotion bundling and `renderMedia` frame/encoding callbacks rather than elapsed-time estimates. The durable job exposes monotonic progress from 5–99%; 100 means the output metadata and private asset are complete.
+- The render input hash includes a pipeline version. A motion-system upgrade creates a new render for the same approved content while preserving the earlier completed output.
+- The video endpoint rechecks verified session, owner, project, job, and completed status. It supports byte ranges and returns `Cache-Control: private, no-store`.
+- `?download=1` is rejected until the finished video has been explicitly approved. Approval requires a confirmation token and does not publish the video.
+- Render failures preserve the approved storyboard, narration, captions, and prior completed renders and expose only a safe retry message.
+
 ## 15. Generation endpoints
 
 ### 15.1 Start generation

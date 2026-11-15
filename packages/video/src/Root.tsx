@@ -10,6 +10,9 @@ const motionlyExplainerPropsSchema = z.object({
   storyboard: storyboardSchema,
   audioFile: z.string().optional(),
   audioPlaybackRate: z.number().positive().max(2).optional(),
+  sceneAudioFiles: z.record(z.string(), z.string()).optional(),
+  sceneDurationsSeconds: z.record(z.string(), z.number().positive()).optional(),
+  captionStyle: z.enum(["MINIMAL", "KARAOKE", "BOLD"]).optional(),
   captions: z
     .array(
       z.object({
@@ -32,5 +35,19 @@ export const RemotionRoot = () => (
     height={1280}
     schema={motionlyExplainerPropsSchema}
     defaultProps={{ storyboard: solarEclipseStoryboard }}
+    calculateMetadata={({ props }) => ({
+      durationInFrames: props.storyboard.scenes.reduce(
+        (total, scene) =>
+          total +
+          Math.max(
+            1,
+            Math.ceil(
+              (props.sceneDurationsSeconds?.[scene.id] ??
+                scene.durationEstimateSeconds) * props.storyboard.video.fps,
+            ),
+          ),
+        0,
+      ),
+    })}
   />
 );

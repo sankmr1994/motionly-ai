@@ -1,0 +1,64 @@
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { dirname, resolve, sep } from "node:path";
+
+const storageRoot = resolve(process.cwd(), "../../storage/renders");
+const safeSegment = /^[a-zA-Z0-9_.-]+$/;
+const safeJobId = /^[a-zA-Z0-9_-]+$/;
+
+function resolveAsset(assetKey: string) {
+  const segments = assetKey.split("/");
+  if (
+    !segments.length ||
+    segments.some((segment) => !segment || !safeSegment.test(segment))
+  ) {
+    throw new Error("Invalid render asset key.");
+  }
+  const path = resolve(storageRoot, ...segments);
+  if (!path.startsWith(`${storageRoot}${sep}`)) {
+    throw new Error("Render asset escaped its storage root.");
+  }
+  return path;
+}
+
+export async function prepareRenderWorkspace(
+  jobId: string,
+  sceneAudio: Array<{ sceneId: string; audio: Uint8Array }>,
+  props: unknown,
+) {
+  if (!safeJobId.test(jobId)) throw new Error("Invalid render job ID.");
+  const publicDir = resolve(storageRoot, jobId, "public");
+  const propsPath = resolve(storageRoot, jobId, "render_props_json");
+  const outputAssetKey = `${jobId}/motionly-video.mp4`;
+  const outputPath = resolveAsset(outputAssetKey);
+  await mkdir(publicDir, { recursive: true });
+  await Promise.all(
+    sceneAudio.map(({ sceneId, audio }) => {
+      if (!safeSegment.test(sceneId)) throw new Error("Invalid scene ID.");
+      return writeFile(resolve(publicDir, `${sceneId}_audio.mp3`), audio);
+    }),
+  );
+  await writeFile(propsPath, JSON.stringify(props), "utf8");
+  await mkdir(dirname(outputPath), { recursive: true });
+  return { publicDir, propsPath, outputPath, outputAssetKey };
+}
+
+export async function getRenderedVideoSize(path: string) {
+  return (await stat(path)).size;
+}
+
+export async function readRenderedVideo(assetKey: string) {
+  return readFile(resolveAsset(assetKey));
+}
+
+export async function cleanupRenderInputs(jobId: string) {
+  if (!safeJobId.test(jobId)) return;
+  await Promise.all([
+    rm(resolve(storageRoot, jobId, "public"), { recursive: true, force: true }),
+    rm(resolve(storageRoot, jobId, "render_props_json"), { force: true }),
+  ]);
+}
+
+export async function deleteRenderJobAssets(jobId: string) {
+  if (!safeJobId.test(jobId)) return;
+  await rm(resolve(storageRoot, jobId), { recursive: true, force: true });
+}

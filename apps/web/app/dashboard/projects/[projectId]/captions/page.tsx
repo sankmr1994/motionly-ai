@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CaptionEditor } from "../../../../../components/caption-editor";
 import { StudioShell } from "../../../../../components/studio-shell";
+import { VideoRenderActionButton } from "../../../../../components/video-render-action-button";
 import { requireStudioSession } from "../../../../../lib/studio-session";
 
 export default async function CaptionsPage({
@@ -75,11 +76,16 @@ export default async function CaptionsPage({
             the approved narration timestamps.
           </p>
         </div>
-        <span className={`caption-status ${captions.status.toLowerCase()}`}>
-          {captions.status === "APPROVED"
-            ? "Captions approved"
-            : "Needs review"}
-        </span>
+        <div className="caption-heading-actions">
+          <span className={`caption-status ${captions.status.toLowerCase()}`}>
+            {captions.status === "APPROVED"
+              ? "Captions approved"
+              : "Needs review"}
+          </span>
+          {captions.status === "APPROVED" ? (
+            <VideoRenderActionButton projectId={projectId} />
+          ) : null}
+        </div>
       </section>
 
       <div className="caption-layout">

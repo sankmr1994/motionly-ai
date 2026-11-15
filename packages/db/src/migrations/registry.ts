@@ -65,4 +65,26 @@ export const migrations: Migration[] = [
       );
     },
   },
+  {
+    id: "004-render-job-indexes",
+    description: "Add owner, project, and active video render job indexes",
+    async up(database) {
+      await database
+        .collection("renderJobs")
+        .createIndex({ ownerId: 1, createdAt: -1, _id: -1 });
+      await database
+        .collection("renderJobs")
+        .createIndex({ ownerId: 1, projectId: 1, createdAt: -1 });
+      await database
+        .collection("renderJobs")
+        .createIndex({ ownerId: 1, versionId: 1, status: 1 });
+      await database.collection("renderJobs").createIndex(
+        { ownerId: 1, projectId: 1, inputHash: 1, status: 1 },
+        {
+          unique: true,
+          partialFilterExpression: { status: "RENDERING" },
+        },
+      );
+    },
+  },
 ];

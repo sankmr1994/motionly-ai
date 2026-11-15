@@ -17,3 +17,4 @@ out/
 *.wav
 *.tsbuildinfo
 pnpm-debug.log*
+.dev-server.*.log
