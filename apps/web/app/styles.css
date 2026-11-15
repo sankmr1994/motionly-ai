@@ -17,6 +17,19 @@
   --body: "Geist", Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
+@media (max-width: 560px) {
+  .trending-ideas-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .trending-ideas-heading > button {
+    width: 100%;
+  }
+  .trending-ideas-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Phase 2: authentication, onboarding, and dashboard shell */
 .auth-page {
   min-height: 100vh;
@@ -4549,6 +4562,118 @@ a:focus-visible {
   color: #a52e3a;
   font-size: 11px;
   font-weight: 700;
+}
+
+.trending-ideas {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #d9e1ef;
+  border-left: 3px solid var(--cobalt);
+  background: linear-gradient(135deg, #f7f9ff, #fff);
+}
+.trending-ideas-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.trending-ideas-heading span {
+  color: var(--cobalt);
+  font: 800 8px/1 monospace;
+  letter-spacing: 0.14em;
+}
+.trending-ideas-heading h3 {
+  margin: 6px 0 0;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+.trending-ideas-heading p {
+  margin: 4px 0 0;
+  color: #748096;
+  font-size: 9px;
+}
+.trending-ideas-heading > button {
+  min-height: 36px;
+  flex: 0 0 auto;
+  padding: 0 13px;
+  border: 1px solid var(--cobalt);
+  border-radius: 2px;
+  background: var(--cobalt);
+  color: #fff;
+  font: 800 9px var(--body);
+  cursor: pointer;
+}
+.trending-ideas-heading > button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+.trending-ideas-message {
+  margin: 12px 0 0;
+  color: #8d3540;
+  font-size: 10px;
+}
+.trending-ideas-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+.trending-ideas-grid article {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #dfe5ef;
+  background: #fff;
+}
+.trending-ideas-grid article > span {
+  color: var(--cobalt);
+  font: 800 8px/1 monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.trending-ideas-grid h4 {
+  margin: 7px 0 0;
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 1.3;
+}
+.trending-ideas-grid p {
+  margin: 5px 0 0;
+  color: #6f7b91;
+  font-size: 9px;
+  line-height: 1.45;
+}
+.trending-ideas-grid button {
+  margin-top: 9px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--cobalt);
+  font: 800 9px var(--body);
+  cursor: pointer;
+}
+.trending-sources {
+  margin-top: 12px;
+  border-top: 1px solid #e2e7f0;
+  padding-top: 10px;
+  color: #6c788d;
+  font-size: 9px;
+}
+.trending-sources summary {
+  cursor: pointer;
+  font-weight: 750;
+}
+.trending-sources div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 8px;
+}
+.trending-sources a {
+  max-width: 220px;
+  overflow: hidden;
+  color: var(--cobalt);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .create-reference {

@@ -2,8 +2,8 @@
 
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
-Last updated: **2026-11-14**
-Current implementation phase: **Phases 5C and 6 — Video rendering and finished-video review implemented locally**
+Last updated: **2026-11-15**
+Current implementation phase: **Phases 5C and 6 plus creator-discovery and video-library UX implemented locally**
 Next planned phase: **Phase 7 — Manual Instagram publishing foundation**
 
 ## 1. Product summary
@@ -104,6 +104,8 @@ Phase 3 dashboard and project foundation implemented on **2026-11-11**:
 - Rebalanced the returning-user dashboard so the compact welcome header flows directly into My Videos and saved drafts are visible in the initial viewport. The large blue idea explainer now appears only for first-time users with no active projects; returning users receive a compact create-next-video prompt after their library.
 - Added owner-scoped draft management: reopen and update the idea/script while preserving immutable revision history, rename, reversible archive/restore, and permanent draft deletion behind an explicit confirmation dialog. Matching authenticated metadata `PATCH` and draft-only `DELETE` APIs share the same validation rules.
 - Fixed the studio navigation state so the cobalt selection follows My Videos or Create New Video on desktop and mobile instead of remaining pinned to My Videos.
+- Fixed project-card overflow menus so only the active card menu remains visible. Menus now dismiss on outside click, Escape, navigation, and immediately after choosing Archive or Restore.
+- Extended confirmed permanent deletion beyond drafts to review-ready, approved, archived, and finished-video projects. The owner-scoped transaction removes versions and related planning, narration, caption, and render records; local narration/render assets are then purged. Active planning, narration, or rendering blocks deletion until processing finishes.
 - Type checking, 12 automated tests, the Next.js production build, migration, liveness endpoint, protected dashboard redirect, and unauthenticated project API responses passed.
 - Signed-in desktop and narrow responsive browser QA confirmed that My Videos and the first draft card are visible without scrolling past an oversized onboarding panel.
 
@@ -170,6 +172,13 @@ Phases 5C and 6 video rendering and review implemented on **2026-11-14**:
 - Added and applied migration `004-render-job-indexes` plus deterministic render-timeline/readiness regression tests. Automated verification passed with all workspace type checks, all **49** tests, and the optimized Next.js production build.
 - Per the product owner's standing preference, signed-in browser QA and a live MP4 render were not run automatically. The first product-owner-triggered local render remains the final runtime confirmation for the installed browser/codec environment.
 - Local request-triggered background execution and local media storage are development adapters. Inngest execution and private Cloudflare R2 storage remain required before production deployment.
+
+Creator-discovery and video-library follow-up implemented on **2026-11-15**:
+
+- Added on-demand AI topic discovery to Create Video. Suggestions are personalized from the authenticated user's saved category and language, grounded with live Google Search, and include visible source links; an ungrounded response is never labeled as trending.
+- Added a three-hour owner-scoped MongoDB suggestion cache and a 15-minute manual-refresh cooldown to avoid repeated provider spend. Topic discovery never runs automatically during page load.
+- Added direct finished-video workflow actions to every My Videos card using one owner-scoped batch query: View progress, Retry video, Review video, or Watch video. Users no longer need to traverse storyboard, narration, and captions to reopen a finished render.
+- Added and applied migration `005-topic-suggestion-cache-indexes`. Provider quota errors now produce a specific safe message and fall back to the last cached topic set when one exists. Formatting, all workspace type checks, all **55** automated tests, and the optimized production build passed; signed-in browser testing was intentionally left to the product owner.
 
 ## 5. Existing validated video POCs
 

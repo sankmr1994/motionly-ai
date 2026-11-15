@@ -478,6 +478,8 @@ Idempotency-Key: ...
 
 For a `DRAFT` project without generated assets, V1 performs an owner-scoped transactional deletion of the project and its immutable draft versions and returns `204 No Content`. Archived drafts remain eligible for this operation. The UI requires an explicit confirmation because the deletion is permanent.
 
+The implemented authenticated dashboard server action also supports confirmed deletion of review-ready, approved, archived, and locally rendered projects. It first rejects any project with active planning, narration, or rendering work, then transactionally removes the owner-scoped project, versions, and job records before purging private local narration/render directories. The REST `DELETE` endpoint remains draft-only until the production asynchronous R2 purge workflow below is introduced.
+
 Generated projects are not eligible for immediate deletion. Their future asset-aware deletion flow returns `202 Accepted` with a deletion-job identifier, immediately moves the project to `DELETING`, hides it from normal project queries, and purges MongoDB and R2 data asynchronously.
 
 ## 14. Planning and version endpoints
@@ -681,6 +683,14 @@ Range: bytes=0-
 ```
 
 Render start and finished-video approval use protected server actions. The server derives owner identity from the verified session and rereads all render inputs from owner-scoped records; clients never submit storyboard content, storage keys, or approval state as authoritative values.
+
+### On-demand trending-topic discovery
+
+The Create Video screen exposes a protected server action that derives content category, language, timezone, and owner identity from the verified session profile. It uses Gemini with Google Search grounding to return exactly six safe, beginner-friendly video ideas plus the web sources that established their timeliness. Responses without grounding sources fail safely and are never presented as trending.
+
+Results are cached by owner, category, and language for three hours. A manual refresh is allowed after a 15-minute cooldown; loading the page never triggers a provider request. The client may copy a returned idea into the draft field, but the normal project-creation contract remains authoritative.
+
+The My Videos page batch-loads the newest render state for all visible owner-scoped projects. It maps that state to direct progress, retry, review, and playback links without exposing asset keys or accepting client-supplied ownership.
 
 Rules:
 

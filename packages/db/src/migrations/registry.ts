@@ -87,4 +87,16 @@ export const migrations: Migration[] = [
       );
     },
   },
+  {
+    id: "005-topic-suggestion-cache-indexes",
+    description: "Add owner-scoped and expiry indexes for topic suggestions",
+    async up(database) {
+      await database
+        .collection("topicSuggestionCaches")
+        .createIndex({ ownerId: 1, cacheKey: 1 }, { unique: true });
+      await database
+        .collection("topicSuggestionCaches")
+        .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+    },
+  },
 ];

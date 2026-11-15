@@ -4,6 +4,7 @@ import {
   buildOwnedProjectsFilter,
   compileStoryboardEdits,
   deriveStoryboardEditPatches,
+  getProjectDeletionReadiness,
   getPlanningReadiness,
   getRevisionSelectionReadiness,
   resolvePlanningReferences,
@@ -45,6 +46,19 @@ describe("project planning readiness", () => {
     expect(getPlanningReadiness("PLANNING")).toBe("already_planning");
     expect(getPlanningReadiness("APPROVED")).toBe("not_ready");
     expect(getPlanningReadiness("ARCHIVED")).toBe("not_ready");
+  });
+});
+
+describe("project deletion readiness", () => {
+  it("allows completed workflow states to be permanently deleted", () => {
+    expect(getProjectDeletionReadiness("REVIEW_READY", false)).toBe("ready");
+    expect(getProjectDeletionReadiness("APPROVED", false)).toBe("ready");
+    expect(getProjectDeletionReadiness("READY", false)).toBe("ready");
+  });
+
+  it("blocks deletion while project work is active", () => {
+    expect(getProjectDeletionReadiness("PLANNING", false)).toBe("busy");
+    expect(getProjectDeletionReadiness("APPROVED", true)).toBe("busy");
   });
 });
 

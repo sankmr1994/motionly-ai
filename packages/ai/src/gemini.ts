@@ -18,7 +18,7 @@ Diagrams and quantitative displays must be accurate and clearly labeled.`;
 
 const GEMINI_REQUEST_TIMEOUT_MS = 55_000;
 
-const createGeminiClient = (apiKey: string) =>
+export const createGeminiClient = (apiKey: string) =>
   new GoogleGenAI({
     apiKey,
     httpOptions: { timeout: GEMINI_REQUEST_TIMEOUT_MS },

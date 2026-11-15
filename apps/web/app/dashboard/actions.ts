@@ -1,13 +1,11 @@
 "use server";
 
-import {
-  deleteDraftProject,
-  renameProject,
-  setProjectArchived,
-} from "@motionly/db";
+import { deleteProject, renameProject, setProjectArchived } from "@motionly/db";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { auth } from "../../lib/auth";
+import { deleteNarrationJobAssets } from "../../lib/narration-storage";
+import { deleteRenderJobAssets } from "../../lib/render-storage";
 
 export type ProjectActionResult = {
   ok: boolean;
@@ -50,21 +48,26 @@ export async function archiveProjectAction(
   };
 }
 
-export async function deleteDraftProjectAction(
+export async function deleteProjectAction(
   projectId: string,
 ): Promise<ProjectActionResult> {
   const ownerId = await getOwnerId();
   if (!ownerId) return { ok: false, message: "Please sign in again." };
-  const result = await deleteDraftProject(ownerId, projectId);
-  if (result === "not_draft") {
+  const result = await deleteProject(ownerId, projectId);
+  if (result.status === "busy") {
     return {
       ok: false,
-      message: "Only draft projects can be permanently deleted.",
+      message:
+        "This project is still processing. Please wait before deleting it.",
     };
   }
-  if (result === "not_found") {
+  if (result.status === "not_found") {
     return { ok: false, message: "This project was not found." };
   }
+  await Promise.allSettled([
+    ...result.narrationJobIds.map(deleteNarrationJobAssets),
+    ...result.renderJobIds.map(deleteRenderJobAssets),
+  ]);
   revalidatePath("/dashboard");
-  return { ok: true, message: "Draft permanently deleted." };
+  return { ok: true, message: "Project permanently deleted." };
 }

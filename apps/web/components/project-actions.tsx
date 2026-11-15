@@ -3,10 +3,10 @@
 import type { ProjectStatus } from "@motionly/shared";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   archiveProjectAction,
-  deleteDraftProjectAction,
+  deleteProjectAction,
   renameProjectAction,
 } from "../app/dashboard/actions";
 import { StudioIcon } from "./studio-icon";
@@ -27,11 +27,39 @@ export function ProjectActions({
   title: string;
 }) {
   const router = useRouter();
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [nextTitle, setNextTitle] = useState(title);
   const [message, setMessage] = useState("");
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (
+        event.target instanceof Node &&
+        !actionsRef.current?.contains(event.target)
+      ) {
+        setMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setMenuOpen(false);
+      triggerRef.current?.focus();
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
 
   function finish(result: { ok: boolean; message: string }) {
     setMessage(result.ok ? "" : result.message);
@@ -44,14 +72,16 @@ export function ProjectActions({
 
   function archiveOrRestore() {
     setMessage("");
+    setMenuOpen(false);
     startTransition(async () => {
       finish(await archiveProjectAction(projectId, !archived));
     });
   }
 
   return (
-    <div className="project-actions">
+    <div className="project-actions" ref={actionsRef}>
       <button
+        ref={triggerRef}
         className="project-actions-trigger"
         type="button"
         aria-label={`Actions for ${title}`}
@@ -70,6 +100,7 @@ export function ProjectActions({
             <Link
               role="menuitem"
               href={`/dashboard/create?projectId=${projectId}`}
+              onClick={() => setMenuOpen(false)}
             >
               <StudioIcon name="edit" />
               Edit draft
@@ -79,6 +110,7 @@ export function ProjectActions({
             <Link
               role="menuitem"
               href={`/dashboard/projects/${projectId}/storyboard`}
+              onClick={() => setMenuOpen(false)}
             >
               <StudioIcon name="projects" />
               {status === "APPROVED" ? "View storyboard" : "Review storyboard"}
@@ -118,7 +150,7 @@ export function ProjectActions({
               }}
             >
               <StudioIcon name="trash" />
-              Delete draft
+              Delete project
             </button>
           ) : null}
         </div>
@@ -156,10 +188,11 @@ export function ProjectActions({
             ) : (
               <>
                 <span className="studio-eyebrow danger">PERMANENT ACTION</span>
-                <h3 id="project-delete-title">Delete this draft?</h3>
+                <h3 id="project-delete-title">Delete this project?</h3>
                 <p>
-                  “{title}” and its saved draft content will be permanently
-                  removed. This cannot be undone.
+                  “{title}” and all its saved revisions, narration, captions,
+                  and generated videos will be permanently removed. This cannot
+                  be undone.
                 </p>
               </>
             )}
@@ -195,7 +228,7 @@ export function ProjectActions({
                     finish(
                       dialog === "rename"
                         ? await renameProjectAction(projectId, nextTitle)
-                        : await deleteDraftProjectAction(projectId),
+                        : await deleteProjectAction(projectId),
                     );
                   });
                 }}

@@ -6,6 +6,7 @@ import {
   type DraftActionState,
 } from "../app/dashboard/create/actions";
 import { StudioIcon } from "./studio-icon";
+import { TrendingTopicSuggestions } from "./trending-topic-suggestions";
 
 const initialState: DraftActionState = {};
 
@@ -100,6 +101,16 @@ export function CreateProjectForm({ draft }: { draft?: EditableDraft }) {
             {contentError}
           </p>
         ) : null}
+
+        <TrendingTopicSuggestions
+          onSelect={(idea) => {
+            setMode("TOPIC");
+            setContent(idea);
+            requestAnimationFrame(() => {
+              document.getElementById("project-content")?.focus();
+            });
+          }}
+        />
 
         <section className="create-reference">
           {!showReference ? (

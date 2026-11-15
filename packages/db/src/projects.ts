@@ -464,9 +464,7 @@ function toSummary(project: ProjectDocument): ProjectSummary {
     currentVersionId: project.currentVersionId.toHexString(),
     video: project.videoDefaults,
     archived: project.status === "ARCHIVED",
-    canDelete:
-      project.status === "DRAFT" ||
-      (project.status === "ARCHIVED" && project.previousStatus === "DRAFT"),
+    canDelete: !["PLANNING", "GENERATING", "DELETING"].includes(project.status),
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString(),
   };
@@ -774,6 +772,108 @@ export async function deleteDraftProject(
         { session },
       );
       result = "deleted";
+    });
+    return result;
+  } finally {
+    await session.endSession();
+  }
+}
+
+export function getProjectDeletionReadiness(
+  status: ProjectStatus,
+  hasActiveJob: boolean,
+): "ready" | "busy" {
+  return hasActiveJob || ["PLANNING", "GENERATING", "DELETING"].includes(status)
+    ? "busy"
+    : "ready";
+}
+
+export type DeleteProjectResult =
+  | {
+      status: "deleted";
+      narrationJobIds: string[];
+      renderJobIds: string[];
+    }
+  | { status: "busy" }
+  | { status: "not_found" };
+
+export async function deleteProject(
+  ownerId: string,
+  projectId: string,
+): Promise<DeleteProjectResult> {
+  const id = toObjectId(projectId);
+  if (!id || !ownerId.trim()) return { status: "not_found" };
+
+  const database = await getDatabase();
+  const client = getDatabaseClient();
+  const session = client.startSession();
+  try {
+    let result: DeleteProjectResult = { status: "not_found" };
+    await session.withTransaction(async () => {
+      const project = await projectCollection(database).findOne(
+        { _id: id, ownerId },
+        { session },
+      );
+      if (!project) return;
+
+      const activePlanning = await database
+        .collection("planningJobs")
+        .findOne(
+          { ownerId, projectId: id, status: "GENERATING" },
+          { session, projection: { _id: 1 } },
+        );
+      const activeNarration = await database
+        .collection("narrationJobs")
+        .findOne(
+          { ownerId, projectId: id, status: "GENERATING" },
+          { session, projection: { _id: 1 } },
+        );
+      const activeRender = await database
+        .collection("renderJobs")
+        .findOne(
+          { ownerId, projectId: id, status: "RENDERING" },
+          { session, projection: { _id: 1 } },
+        );
+      if (
+        getProjectDeletionReadiness(
+          project.status,
+          Boolean(activePlanning || activeNarration || activeRender),
+        ) === "busy"
+      ) {
+        result = { status: "busy" };
+        return;
+      }
+
+      const narrationJobs = await database
+        .collection<{ _id: ObjectId }>("narrationJobs")
+        .find({ ownerId, projectId: id }, { session, projection: { _id: 1 } })
+        .toArray();
+      const renderJobs = await database
+        .collection<{ _id: ObjectId }>("renderJobs")
+        .find({ ownerId, projectId: id }, { session, projection: { _id: 1 } })
+        .toArray();
+
+      await database
+        .collection("planningJobs")
+        .deleteMany({ ownerId, projectId: id }, { session });
+      await database
+        .collection("narrationJobs")
+        .deleteMany({ ownerId, projectId: id }, { session });
+      await database
+        .collection("renderJobs")
+        .deleteMany({ ownerId, projectId: id }, { session });
+      await database
+        .collection<ProjectVersionDocument>("projectVersions")
+        .deleteMany({ ownerId, projectId: id }, { session });
+      await projectCollection(database).deleteOne(
+        { _id: id, ownerId },
+        { session },
+      );
+      result = {
+        status: "deleted",
+        narrationJobIds: narrationJobs.map((job) => job._id.toHexString()),
+        renderJobIds: renderJobs.map((job) => job._id.toHexString()),
+      };
     });
     return result;
   } finally {

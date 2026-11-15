@@ -122,6 +122,14 @@ export type VideoRenderJobView = {
   completedAt?: string;
 };
 
+export type VideoLibraryRenderState = {
+  jobId: string;
+  status: RenderJobStatus;
+  progress: number;
+  reviewStatus: VideoReviewStatus;
+  completedAt?: string;
+};
+
 const toObjectId = (value: string) =>
   ObjectId.isValid(value) ? new ObjectId(value) : null;
 
@@ -461,6 +469,44 @@ export async function getLatestVideoRenderJob(
     .collection<RenderJobDocument>("renderJobs")
     .findOne({ ownerId, projectId: id }, { sort: { createdAt: -1 } });
   return job ? toView(job) : null;
+}
+
+export async function listLatestVideoRenderJobs(
+  ownerId: string,
+  projectIds: string[],
+): Promise<Record<string, VideoLibraryRenderState>> {
+  if (!ownerId.trim() || projectIds.length === 0) return {};
+  const ids = projectIds
+    .map(toObjectId)
+    .filter((id): id is ObjectId => id !== null);
+  if (ids.length === 0) return {};
+
+  const jobs = await (
+    await getDatabase()
+  )
+    .collection<RenderJobDocument>("renderJobs")
+    .aggregate<RenderJobDocument>([
+      { $match: { ownerId, projectId: { $in: ids } } },
+      { $sort: { createdAt: -1, _id: -1 } },
+      { $group: { _id: "$projectId", latest: { $first: "$$ROOT" } } },
+      { $replaceRoot: { newRoot: "$latest" } },
+    ])
+    .toArray();
+  const latest: Record<string, VideoLibraryRenderState> = {};
+  for (const job of jobs) {
+    const projectId = job.projectId.toHexString();
+    if (latest[projectId]) continue;
+    latest[projectId] = {
+      jobId: job._id.toHexString(),
+      status: job.status,
+      progress: Math.max(0, Math.min(100, job.progress)),
+      reviewStatus: job.review.status,
+      ...(job.completedAt
+        ? { completedAt: job.completedAt.toISOString() }
+        : {}),
+    };
+  }
+  return latest;
 }
 
 export async function getRenderedVideoAsset(

@@ -1,10 +1,28 @@
-import { listProjects } from "@motionly/db";
+import {
+  listLatestVideoRenderJobs,
+  listProjects,
+  type VideoLibraryRenderState,
+} from "@motionly/db";
 import Link from "next/link";
 import { ProjectActions } from "../../components/project-actions";
 import { StudioIcon } from "../../components/studio-icon";
 import { StudioShell } from "../../components/studio-shell";
 import { StoryboardActionButton } from "../../components/storyboard-action-button";
 import { requireStudioSession } from "../../lib/studio-session";
+
+function videoLibraryPresentation(render?: VideoLibraryRenderState) {
+  if (!render) return null;
+  if (render.status === "RENDERING") {
+    return { status: `RENDERING ${render.progress}%`, action: "View progress" };
+  }
+  if (render.status === "FAILED") {
+    return { status: "VIDEO NEEDS RETRY", action: "Retry video" };
+  }
+  if (render.reviewStatus === "APPROVED") {
+    return { status: "VIDEO READY", action: "Watch video" };
+  }
+  return { status: "READY TO REVIEW", action: "Review video" };
+}
 
 export default async function DashboardPage({
   searchParams,
@@ -15,6 +33,10 @@ export default async function DashboardPage({
   const { created, updated, view } = await searchParams;
   const archived = view === "archived";
   const projects = await listProjects(session.user.id, 50, { archived });
+  const videoRenderStates = await listLatestVideoRenderJobs(
+    session.user.id,
+    projects.map((project) => project.id),
+  );
   const firstName = session.user.name.split(" ")[0] || "Creator";
   return (
     <StudioShell
@@ -125,79 +147,98 @@ export default async function DashboardPage({
 
         {projects.length ? (
           <div className="project-grid">
-            {projects.map((project, index) => (
-              <article className="project-card" key={project.id}>
-                <div className="project-thumbnail">
-                  <span>{String(index + 1).padStart(2, "0")}</span>
-                  <div>
-                    <i />
-                    <i />
-                    <i />
-                  </div>
-                  <small>9:16</small>
-                </div>
-                <div className="project-card-copy">
-                  <div className="project-card-meta">
+            {projects.map((project, index) => {
+              const video = videoLibraryPresentation(
+                videoRenderStates[project.id],
+              );
+              return (
+                <article className="project-card" key={project.id}>
+                  <div className="project-thumbnail">
+                    <span>{String(index + 1).padStart(2, "0")}</span>
                     <div>
-                      <span className="project-status">
-                        {project.archived ? "ARCHIVED" : project.status}
-                      </span>
-                      <span>{project.video.targetDurationSeconds}s</span>
+                      <i />
+                      <i />
+                      <i />
                     </div>
-                    <ProjectActions
-                      archived={project.archived}
-                      canDelete={project.canDelete}
-                      projectId={project.id}
-                      status={project.status}
-                      title={project.title}
-                    />
+                    <small>9:16</small>
                   </div>
-                  <h3>{project.title}</h3>
-                  <p>
-                    {project.inputMode === "TOPIC"
-                      ? "Idea draft"
-                      : "Script draft"}
-                    {project.topic ? ` · ${project.topic}` : " · Ready to plan"}
-                  </p>
-                  <footer>
-                    <time dateTime={project.updatedAt}>
-                      Updated{" "}
-                      {new Intl.DateTimeFormat("en", {
-                        dateStyle: "medium",
-                      }).format(new Date(project.updatedAt))}
-                    </time>
-                    {project.archived ? (
-                      <span>Stored safely</span>
-                    ) : project.status === "DRAFT" ? (
-                      <StoryboardActionButton
-                        mode="plan"
+                  <div className="project-card-copy">
+                    <div className="project-card-meta">
+                      <div>
+                        <span className="project-status">
+                          {project.archived
+                            ? "ARCHIVED"
+                            : (video?.status ?? project.status)}
+                        </span>
+                        <span>{project.video.targetDurationSeconds}s</span>
+                      </div>
+                      <ProjectActions
+                        archived={project.archived}
+                        canDelete={
+                          project.canDelete &&
+                          videoRenderStates[project.id]?.status !== "RENDERING"
+                        }
                         projectId={project.id}
-                        variant="secondary"
+                        status={project.status}
+                        title={project.title}
                       />
-                    ) : project.status === "REVIEW_READY" ||
-                      project.status === "APPROVED" ? (
-                      <Link
-                        className="project-review-link"
-                        href={`/dashboard/projects/${project.id}/storyboard`}
-                      >
-                        {project.status === "APPROVED"
-                          ? "View approved plan"
-                          : "Review storyboard"}
-                      </Link>
-                    ) : project.status === "PLANNING" ? (
-                      <StoryboardActionButton
-                        mode="plan"
-                        projectId={project.id}
-                        variant="secondary"
-                        label="Retry storyboard"
-                      />
-                    ) : (
-                      <span>{project.status.replaceAll("_", " ")}</span>
-                    )}
-                  </footer>
-                </div>
-              </article>
-            ))}
+                    </div>
+                    <h3>{project.title}</h3>
+                    <p>
+                      {project.inputMode === "TOPIC"
+                        ? "Idea draft"
+                        : "Script draft"}
+                      {project.topic
+                        ? ` · ${project.topic}`
+                        : " · Ready to plan"}
+                    </p>
+                    <footer>
+                      <time dateTime={project.updatedAt}>
+                        Updated{" "}
+                        {new Intl.DateTimeFormat("en", {
+                          dateStyle: "medium",
+                        }).format(new Date(project.updatedAt))}
+                      </time>
+                      {project.archived ? (
+                        <span>Stored safely</span>
+                      ) : video ? (
+                        <Link
+                          className="project-review-link"
+                          href={`/dashboard/projects/${project.id}/video`}
+                        >
+                          {video.action}
+                        </Link>
+                      ) : project.status === "DRAFT" ? (
+                        <StoryboardActionButton
+                          mode="plan"
+                          projectId={project.id}
+                          variant="secondary"
+                        />
+                      ) : project.status === "REVIEW_READY" ||
+                        project.status === "APPROVED" ? (
+                        <Link
+                          className="project-review-link"
+                          href={`/dashboard/projects/${project.id}/storyboard`}
+                        >
+                          {project.status === "APPROVED"
+                            ? "View approved plan"
+                            : "Review storyboard"}
+                        </Link>
+                      ) : project.status === "PLANNING" ? (
+                        <StoryboardActionButton
+                          mode="plan"
+                          projectId={project.id}
+                          variant="secondary"
+                          label="Retry storyboard"
+                        />
+                      ) : (
+                        <span>{project.status.replaceAll("_", " ")}</span>
+                      )}
+                    </footer>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         ) : (
           <div className="empty-projects-new">

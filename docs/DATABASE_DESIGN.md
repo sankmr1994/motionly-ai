@@ -494,6 +494,31 @@ Phases 5C and 6 use a focused durable collection for the current local rendering
 
 `inputHash` binds the render to the immutable approved content hash, narration job, and caption version. Completed matches are reused, live matches are blocked, and stale active jobs become retryable failures. MP4 bytes remain outside MongoDB under the opaque `assetKey`; downloads are authorized through `review.status`.
 
+### Implemented `topicSuggestionCaches`
+
+On-demand grounded topic discovery stores a short-lived owner-scoped cache rather than creating projects or revisions:
+
+```javascript
+{
+  ownerId: "user-id",
+  cacheKey: "technology:english",
+  category: "technology",
+  language: "English",
+  result: {
+    suggestions: [{ title, idea, whyNow, category }],
+    sources: [{ title, url }],
+    searchQueries: ["..."],
+    generatedAt: ISODateString,
+    model: "gemini-3.5-flash-lite"
+  },
+  generatedAt: ISODate("..."),
+  expiresAt: ISODate("..."),
+  updatedAt: ISODate("...")
+}
+```
+
+`{ ownerId, cacheKey }` is unique and `expiresAt` has a TTL index. Suggestions are advisory and do not become durable project content until the user chooses one and saves the normal draft form.
+
 ```js
 db.renderJobs.createIndex({ ownerId: 1, createdAt: -1, _id: -1 });
 db.renderJobs.createIndex({ ownerId: 1, projectId: 1, createdAt: -1 });
@@ -1173,6 +1198,8 @@ The approval API submits the hash shown to the user. Generation rejects mismatch
 ### Final media
 
 V1 final-media retention is configuration-driven and documented to users. User-requested deletion takes precedence and triggers the purge workflow.
+
+The current local dashboard adapter performs generated-project deletion synchronously only when no planning, narration, or render job is active. One owner-scoped MongoDB transaction deletes the project, immutable versions, planning jobs, narration/caption records, and render records. After commit, the application removes each opaque narration and render job directory from private local storage. Production R2 deletion remains part of the asynchronous purge workflow described above.
 
 MongoDB TTL cleanup is asynchronous and not guaranteed to run at an exact second. Application logic must treat expired records as expired even before physical deletion.
 
