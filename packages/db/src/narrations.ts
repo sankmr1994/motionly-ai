@@ -70,6 +70,7 @@ type NarrationJobDocument = {
 type ProjectDocument = {
   _id: ObjectId;
   ownerId: string;
+  title: string;
   status: ProjectStatus;
   currentVersionId: ObjectId;
   revisionCounter: number;
@@ -114,7 +115,9 @@ export type NarrationJobView = {
 export type NarrationGenerationInput = {
   jobId: string;
   projectId: string;
+  projectTitle: string;
   versionId: string;
+  revision: number;
   scenes: Array<{
     sceneId: string;
     title: string;
@@ -341,7 +344,9 @@ export async function beginNarrationGeneration(
         input: {
           jobId: jobId.toHexString(),
           projectId: id.toHexString(),
+          projectTitle: project.title,
           versionId: version._id.toHexString(),
+          revision: version.revision,
           scenes: scenes.map(({ sceneId, title, narration }) => ({
             sceneId,
             title,

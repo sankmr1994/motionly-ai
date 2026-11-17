@@ -1,5 +1,13 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, resolve, sep } from "node:path";
+import { readFile, rm } from "node:fs/promises";
+import { resolve, sep } from "node:path";
+import {
+  deletePrivatePrefix,
+  deletePrivateObjects,
+  getPrivateObject,
+  isR2ObjectKey,
+  putPrivateObject,
+  type ByteRange,
+} from "./object-storage";
 
 const storageRoot = resolve(process.cwd(), "../../storage/narrations");
 const safeSegment = /^[a-zA-Z0-9_-]+$/;
@@ -20,22 +28,41 @@ function resolveAsset(assetKey: string) {
 }
 
 export async function storeNarrationAudio(
-  jobId: string,
-  sceneId: string,
+  identity: {
+    ownerId: string;
+    projectId: string;
+    projectTitle: string;
+    revision: number;
+    jobId: string;
+    sceneId: string;
+  },
   audio: Uint8Array,
 ) {
-  const assetKey = `${jobId}/${sceneId}_narration_mp3`;
-  const path = resolveAsset(assetKey);
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, audio);
+  const assetKey = createNarrationAssetKey(identity);
+  await putPrivateObject(assetKey, audio, "audio/mpeg");
   return { assetKey, byteLength: audio.byteLength };
 }
 
-export async function readNarrationAudio(assetKey: string) {
+export async function readNarrationAudio(assetKey: string, range?: ByteRange) {
+  if (isR2ObjectKey(assetKey, "narrations")) {
+    return getPrivateObject(assetKey, range);
+  }
+  if (range) {
+    const audio = await readFile(resolveAsset(assetKey));
+    return audio.subarray(range.start, range.end + 1);
+  }
   return readFile(resolveAsset(assetKey));
 }
 
-export async function deleteNarrationJobAssets(jobId: string) {
+export async function deleteNarrationJobAssets(
+  jobId: string,
+  assetKeys: string[] = [],
+) {
   if (!safeSegment.test(jobId)) return;
-  await rm(resolve(storageRoot, jobId), { recursive: true, force: true });
+  await Promise.all([
+    deletePrivateObjects(assetKeys),
+    deletePrivatePrefix(`narrations/${jobId}/`),
+    rm(resolve(storageRoot, jobId), { recursive: true, force: true }),
+  ]);
 }
+import { createNarrationAssetKey } from "@motionly/shared";

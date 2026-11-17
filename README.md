@@ -2,13 +2,14 @@
 
 Motionly AI is a creator-first application for turning a simple idea into a narrated, captioned, animated video. The repository contains both the validated deterministic video POCs and the production SaaS foundation that will be developed in small, approved phases.
 
-The first fixture is a 30-second vertical explainer: **How does a solar eclipse happen?** It is rendered from validated storyboard JSON and predefined React/SVG animation primitives—not arbitrary AI-generated code or a slideshow of static images.
+Videos are rendered from validated storyboard JSON and predefined React/SVG animation primitives—not arbitrary AI-generated code or a slideshow of static images.
 
 ## Current milestone
 
-- Phase 0 production foundation is complete.
+- The creator workflow from account creation through approved MP4 download is implemented.
+- Narration and completed videos are persisted privately in Cloudflare R2; MongoDB stores their owner-scoped metadata.
 - Solar-eclipse, compound-interest, and binary-search video POCs are complete.
-- The next milestone is the approved Porcelain Cobalt design system and public homepage.
+- The next milestone is the Phase 7 manual Instagram publishing foundation.
 
 Read [PROJECT_STATUS.md](./PROJECT_STATUS.md) for the authoritative implementation state and exact next action.
 
@@ -17,6 +18,7 @@ Read [PROJECT_STATUS.md](./PROJECT_STATUS.md) for the authoritative implementati
 - Node.js 20.9 or later (Node 24 is installed on the current machine)
 - pnpm 11
 - Gemini and ElevenLabs credentials only when testing those integrations
+- A private Cloudflare R2 bucket and bucket-scoped S3 credentials for narration and completed-video storage
 - FFmpeg is optional at this stage; it is not currently installed on this machine
 
 ## Start locally
@@ -24,7 +26,27 @@ Read [PROJECT_STATUS.md](./PROJECT_STATUS.md) for the authoritative implementati
 ```bash
 pnpm install
 pnpm verify
+pnpm check:r2
+pnpm check:r2:storage
 pnpm dev
+```
+
+To copy legacy local application media into R2 without deleting the local rollback copies:
+
+```bash
+pnpm migrate:r2-media
+```
+
+To verify that every MongoDB media reference is grouped under its owning user and readable from R2:
+
+```bash
+pnpm check:r2:references
+```
+
+The protected `/admin/media` page maps private R2 user folders to Motionly accounts and summarizes their projects, audio, videos, and stored bytes. Grant access only to trusted verified accounts with a comma-separated `MOTIONLY_ADMIN_EMAILS` allowlist. Verify the read-only aggregation with:
+
+```bash
+pnpm check:admin-media
 ```
 
 Open the URL printed by Next.js. To use Remotion Studio instead:
@@ -50,6 +72,11 @@ Required only for live API calls:
 - `GEMINI_API_KEY`
 - `ELEVENLABS_API_KEY`
 - `ELEVENLABS_VOICE_ID`
+- `R2_ACCOUNT_ID`
+- `R2_BUCKET_NAME`
+- `R2_ENDPOINT`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
 
 ## Workspace
 
@@ -62,7 +89,7 @@ packages/observability   Structured logs and request IDs
 packages/shared          Zod contracts, timeline compiler, fixtures
 packages/video           Remotion compositions and SVG primitives
 infrastructure           Local infrastructure definitions
-storage                  Local generated assets (ignored)
+storage                  Temporary render workspaces and legacy local assets (ignored)
 out                      Rendered videos (ignored)
 ```
 

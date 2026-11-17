@@ -1,5 +1,13 @@
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve, sep } from "node:path";
+import {
+  deletePrivatePrefix,
+  deletePrivateObjects,
+  getPrivateObject,
+  isR2ObjectKey,
+  putPrivateFile,
+  type ByteRange,
+} from "./object-storage";
 
 const storageRoot = resolve(process.cwd(), "../../storage/renders");
 const safeSegment = /^[a-zA-Z0-9_.-]+$/;
@@ -24,12 +32,18 @@ export async function prepareRenderWorkspace(
   jobId: string,
   sceneAudio: Array<{ sceneId: string; audio: Uint8Array }>,
   props: unknown,
+  identity: {
+    ownerId: string;
+    projectId: string;
+    projectTitle: string;
+    revision: number;
+  },
 ) {
   if (!safeJobId.test(jobId)) throw new Error("Invalid render job ID.");
   const publicDir = resolve(storageRoot, jobId, "public");
   const propsPath = resolve(storageRoot, jobId, "render_props_json");
-  const outputAssetKey = `${jobId}/motionly-video.mp4`;
-  const outputPath = resolveAsset(outputAssetKey);
+  const outputAssetKey = createRenderedVideoAssetKey({ ...identity, jobId });
+  const outputPath = resolve(storageRoot, jobId, "motionly-video.mp4");
   await mkdir(publicDir, { recursive: true });
   await Promise.all(
     sceneAudio.map(({ sceneId, audio }) => {
@@ -46,7 +60,22 @@ export async function getRenderedVideoSize(path: string) {
   return (await stat(path)).size;
 }
 
-export async function readRenderedVideo(assetKey: string) {
+export async function storeRenderedVideo(
+  assetKey: string,
+  path: string,
+  byteLength: number,
+) {
+  await putPrivateFile(assetKey, path, byteLength, "video/mp4");
+}
+
+export async function readRenderedVideo(assetKey: string, range?: ByteRange) {
+  if (isR2ObjectKey(assetKey, "renders")) {
+    return getPrivateObject(assetKey, range);
+  }
+  if (range) {
+    const video = await readFile(resolveAsset(assetKey));
+    return video.subarray(range.start, range.end + 1);
+  }
   return readFile(resolveAsset(assetKey));
 }
 
@@ -58,7 +87,20 @@ export async function cleanupRenderInputs(jobId: string) {
   ]);
 }
 
-export async function deleteRenderJobAssets(jobId: string) {
+export async function deleteRenderJobAssets(
+  jobId: string,
+  assetKeys: string[] = [],
+) {
+  if (!safeJobId.test(jobId)) return;
+  await Promise.all([
+    deletePrivateObjects(assetKeys),
+    deletePrivatePrefix(`renders/${jobId}/`),
+    rm(resolve(storageRoot, jobId), { recursive: true, force: true }),
+  ]);
+}
+
+export async function cleanupRenderWorkspace(jobId: string) {
   if (!safeJobId.test(jobId)) return;
   await rm(resolve(storageRoot, jobId), { recursive: true, force: true });
 }
+import { createRenderedVideoAssetKey } from "@motionly/shared";

@@ -1,10 +1,12 @@
 "use server";
 
 import { deleteProject, renameProject, setProjectArchived } from "@motionly/db";
+import { logger } from "@motionly/observability";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { auth } from "../../lib/auth";
 import { deleteNarrationJobAssets } from "../../lib/narration-storage";
+import { deletePrivateObjects } from "../../lib/object-storage";
 import { deleteRenderJobAssets } from "../../lib/render-storage";
 
 export type ProjectActionResult = {
@@ -64,10 +66,22 @@ export async function deleteProjectAction(
   if (result.status === "not_found") {
     return { ok: false, message: "This project was not found." };
   }
-  await Promise.allSettled([
-    ...result.narrationJobIds.map(deleteNarrationJobAssets),
-    ...result.renderJobIds.map(deleteRenderJobAssets),
+  const cleanup = await Promise.allSettled([
+    deletePrivateObjects(result.assetKeys),
+    ...result.narrationJobIds.map((jobId) => deleteNarrationJobAssets(jobId)),
+    ...result.renderJobIds.map((jobId) => deleteRenderJobAssets(jobId)),
   ]);
+  const failedCleanupCount = cleanup.filter(
+    (item) => item.status === "rejected",
+  ).length;
+  if (failedCleanupCount > 0) {
+    logger.error("project_media_cleanup_failed", {
+      projectId,
+      ownerId,
+      failedCleanupCount,
+      errorCode: "R2_DELETE_FAILED",
+    });
+  }
   revalidatePath("/dashboard");
   return { ok: true, message: "Project permanently deleted." };
 }

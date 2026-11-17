@@ -11,11 +11,15 @@ import { resolve } from "node:path";
 import { readNarrationAudio } from "./narration-storage";
 import {
   cleanupRenderInputs,
+  cleanupRenderWorkspace,
+  deleteRenderJobAssets,
   getRenderedVideoSize,
   prepareRenderWorkspace,
+  storeRenderedVideo,
 } from "./render-storage";
 
 async function executeVideoRender(ownerId: string, input: VideoRenderInput) {
+  let uploadedAssetKey: string | undefined;
   try {
     const compiled = compileApprovedRenderTimeline({
       storyboard: input.storyboard,
@@ -37,13 +41,23 @@ async function executeVideoRender(ownerId: string, input: VideoRenderInput) {
         `${scene.sceneId}_audio.mp3`,
       ]),
     );
-    const workspace = await prepareRenderWorkspace(input.jobId, audio, {
-      storyboard: input.storyboard,
-      sceneAudioFiles,
-      sceneDurationsSeconds: compiled.sceneDurationsSeconds,
-      captionStyle: input.captions.style,
-      captions: compiled.captions,
-    });
+    const workspace = await prepareRenderWorkspace(
+      input.jobId,
+      audio,
+      {
+        storyboard: input.storyboard,
+        sceneAudioFiles,
+        sceneDurationsSeconds: compiled.sceneDurationsSeconds,
+        captionStyle: input.captions.style,
+        captions: compiled.captions,
+      },
+      {
+        ownerId,
+        projectId: input.projectId,
+        projectTitle: input.projectTitle,
+        revision: input.revision,
+      },
+    );
     const workspaceRoot = resolve(process.cwd(), "../..");
     const pnpmArgs = [
       "--filter",
@@ -106,6 +120,13 @@ async function executeVideoRender(ownerId: string, input: VideoRenderInput) {
     });
     await updateVideoRenderProgress(ownerId, input.jobId, 95);
     const byteLength = await getRenderedVideoSize(workspace.outputPath);
+    await storeRenderedVideo(
+      workspace.outputAssetKey,
+      workspace.outputPath,
+      byteLength,
+    );
+    uploadedAssetKey = workspace.outputAssetKey;
+    await updateVideoRenderProgress(ownerId, input.jobId, 99);
     await completeVideoRender(ownerId, input.jobId, {
       assetKey: workspace.outputAssetKey,
       mimeType: "video/mp4",
@@ -115,10 +136,15 @@ async function executeVideoRender(ownerId: string, input: VideoRenderInput) {
       height: 1280,
       fps: 30,
     });
-    await cleanupRenderInputs(input.jobId);
+    await cleanupRenderWorkspace(input.jobId);
   } catch (error) {
     await failVideoRender(ownerId, input.jobId, error).catch(() => undefined);
     await cleanupRenderInputs(input.jobId).catch(() => undefined);
+    if (uploadedAssetKey) {
+      await deleteRenderJobAssets(input.jobId, [uploadedAssetKey]).catch(
+        () => undefined,
+      );
+    }
   }
 }
 

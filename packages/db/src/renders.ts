@@ -14,6 +14,7 @@ import { getDatabase, getDatabaseClient } from "./index";
 type ProjectDocument = {
   _id: ObjectId;
   ownerId: string;
+  title: string;
   status: ProjectStatus;
   currentVersionId: ObjectId;
 };
@@ -92,7 +93,9 @@ type RenderJobDocument = {
 export type VideoRenderInput = {
   jobId: string;
   projectId: string;
+  projectTitle: string;
   versionId: string;
+  revision: number;
   narrationJobId: string;
   storyboard: Storyboard;
   sceneAudio: Array<{
@@ -346,7 +349,9 @@ export async function beginVideoRender(
         input: {
           jobId: jobId.toHexString(),
           projectId,
+          projectTitle: project.title,
           versionId: version._id.toHexString(),
+          revision: version.revision,
           narrationJobId: narration._id.toHexString(),
           storyboard: storyboard.data,
           sceneAudio: narration.scenes.map((scene) => ({

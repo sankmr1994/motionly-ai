@@ -69,7 +69,14 @@ export async function generateNarrationForOwner(
     };
   }
 
-  const { jobId, scenes } = started.input;
+  const {
+    jobId,
+    projectId: approvedProjectId,
+    projectTitle,
+    revision,
+    scenes,
+  } = started.input;
+  const uploadedAssetKeys: string[] = [];
   try {
     for (const scene of scenes) {
       const speech = await generateTimestampedSpeech(scene.narration, {
@@ -79,10 +86,17 @@ export async function generateNarrationForOwner(
       const alignment = speech.normalizedAlignment ?? speech.alignment;
       if (!alignment) throw new SpeechGenerationError();
       const stored = await storeNarrationAudio(
-        jobId,
-        scene.sceneId,
+        {
+          ownerId,
+          projectId: approvedProjectId,
+          projectTitle,
+          revision,
+          jobId,
+          sceneId: scene.sceneId,
+        },
         speech.audio,
       );
+      uploadedAssetKeys.push(stored.assetKey);
       await completeNarrationScene(ownerId, jobId, scene.sceneId, {
         ...stored,
         durationSeconds,
@@ -108,7 +122,7 @@ export async function generateNarrationForOwner(
     });
     try {
       await failNarrationGeneration(ownerId, jobId);
-      await deleteNarrationJobAssets(jobId);
+      await deleteNarrationJobAssets(jobId, uploadedAssetKeys);
     } catch {
       logger.error("narration_generation_cleanup_failed", {
         projectId,

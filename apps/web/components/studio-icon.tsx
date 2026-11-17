@@ -13,6 +13,7 @@ type StudioIconName =
   | "script"
   | "settings"
   | "sparkles"
+  | "storage"
   | "templates"
   | "trash"
   | "video";
@@ -81,6 +82,12 @@ const paths: Record<StudioIconName, React.ReactNode> = {
     <>
       <path d="m12 2 1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5L12 2Z" />
       <path d="m19 14 .8 2.2 2.2.8-2.2.8L19 20l-.8-2.2L16 17l2.2-.8L19 14Z" />
+    </>
+  ),
+  storage: (
+    <>
+      <ellipse cx="12" cy="5" rx="8" ry="3" />
+      <path d="M4 5v7c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7" />
     </>
   ),
   templates: (

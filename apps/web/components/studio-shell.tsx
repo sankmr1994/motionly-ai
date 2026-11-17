@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isMotionlyAdmin } from "../lib/admin-access";
 import { SignOutButton } from "./sign-out-button";
 import { StudioIcon } from "./studio-icon";
 
@@ -7,11 +8,12 @@ export function StudioShell({
   children,
   user,
 }: {
-  active: "videos" | "create";
+  active: "videos" | "create" | "admin";
   children: React.ReactNode;
   user: { name: string; email: string };
 }) {
   const firstInitial = user.name.trim().charAt(0).toUpperCase() || "M";
+  const isAdmin = isMotionlyAdmin(user.email);
   return (
     <div className="studio-layout">
       <aside className="studio-sidebar">
@@ -52,6 +54,15 @@ export function StudioShell({
             <StudioIcon name="settings" />
             Settings
           </span>
+          {isAdmin ? (
+            <Link
+              className={active === "admin" ? "active" : ""}
+              href="/admin/media"
+            >
+              <StudioIcon name="storage" />
+              Media admin
+            </Link>
+          ) : null}
         </nav>
 
         <div className="studio-sidebar-note">
@@ -108,6 +119,15 @@ export function StudioShell({
           <StudioIcon name="settings" />
           Settings
         </span>
+        {isAdmin ? (
+          <Link
+            className={active === "admin" ? "active" : ""}
+            href="/admin/media"
+          >
+            <StudioIcon name="storage" />
+            Admin
+          </Link>
+        ) : null}
       </nav>
     </div>
   );

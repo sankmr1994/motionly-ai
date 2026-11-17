@@ -3,6 +3,8 @@ export * from "./project";
 export * from "./narration";
 export * from "./captions";
 export * from "./render";
+export * from "./http-range";
+export * from "./media-storage";
 export * from "./fixtures/solar-eclipse";
 export * from "./fixtures/compound-interest";
 export * from "./fixtures/binary-search";

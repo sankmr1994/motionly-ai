@@ -92,7 +92,7 @@ These are the implementation baseline verified against the npm registry on 2026-
 | Transactional email   | Resend SDK                   | 6.5.2                         | Verification and password recovery               |
 | Database driver       | `mongodb`                    | 7.8.0                         | Official driver; avoid ODM coupling in V1        |
 | Durable jobs          | `inngest`                    | 4.26.2                        | Step retries, traces, and failure handling       |
-| Object storage client | `@aws-sdk/client-s3`         | 3.1164.0                      | Cloudflare R2 uses an S3-compatible API          |
+| Object storage client | `@aws-sdk/client-s3`         | 3.1169.0                      | Cloudflare R2 uses an S3-compatible API          |
 | Error monitoring      | `@sentry/nextjs`             | 11.11.0                       | Browser/server errors and performance traces     |
 | Web hosting           | Vercel                       | Managed service               | Next.js control plane                            |
 | Metadata database     | MongoDB Atlas                | Managed service               | Projects, revisions, jobs, assets, usage         |
@@ -369,15 +369,11 @@ Append-only records for Gemini calls, TTS characters, render seconds, and storag
 All buckets are private. Database records store keys, never permanent public URLs.
 
 ```text
-users/{userId}/projects/{projectId}/versions/{versionId}/storyboard.json
-users/{userId}/projects/{projectId}/jobs/{jobId}/narration.mp3
-users/{userId}/projects/{projectId}/jobs/{jobId}/alignment.json
-users/{userId}/projects/{projectId}/jobs/{jobId}/render-props.json
-users/{userId}/projects/{projectId}/jobs/{jobId}/preview.jpg
-users/{userId}/projects/{projectId}/jobs/{jobId}/video.mp4
+users/{ownerId}/projects/{titleSlug}--{projectId}/revision-{revision}/narration/{jobId}/{sceneId}.mp3
+users/{ownerId}/projects/{titleSlug}--{projectId}/revision-{revision}/video/{jobId}/motionly-video.mp4
 ```
 
-Preview and download URLs are short-lived signed URLs, normally 10 minutes. The API verifies asset ownership before signing.
+The stable, non-PII owner ID groups each account's media for administration, while the readable title slug makes projects easy to inspect. Immutable owner, project, revision, job, and scene identifiers remain authoritative. MongoDB stores each exact object key, so later account or project renaming does not break existing media. Current V1 playback and downloads use authenticated owner-scoped application routes. Direct short-lived signed URLs remain a later measured performance optimization.
 
 ## 11. API surface
 

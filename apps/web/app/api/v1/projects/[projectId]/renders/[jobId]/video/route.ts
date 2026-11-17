@@ -1,5 +1,7 @@
 import { getRenderedVideoAsset } from "@motionly/db";
+import { parseSingleByteRange } from "@motionly/shared";
 import { auth } from "../../../../../../../../lib/auth";
+import { isStoredAssetNotFound } from "../../../../../../../../lib/object-storage";
 import { readRenderedVideo } from "../../../../../../../../lib/render-storage";
 
 export const runtime = "nodejs";
@@ -37,12 +39,6 @@ export async function GET(
     );
   }
 
-  let video: Buffer;
-  try {
-    video = await readRenderedVideo(asset.assetKey);
-  } catch {
-    return problem(404, "NOT_FOUND", "Video was not found.");
-  }
   const range = request.headers.get("range");
   const commonHeaders: Record<string, string> = {
     "Accept-Ranges": "bytes",
@@ -55,6 +51,14 @@ export async function GET(
       `attachment; filename="motionly-${projectId}.mp4"`;
   }
   if (!range) {
+    let video: Buffer;
+    try {
+      video = await readRenderedVideo(asset.assetKey);
+    } catch (error) {
+      return isStoredAssetNotFound(error)
+        ? problem(404, "NOT_FOUND", "Video was not found.")
+        : problem(502, "STORAGE_UNAVAILABLE", "Video storage is unavailable.");
+    }
     return new Response(new Uint8Array(video), {
       status: 200,
       headers: {
@@ -63,29 +67,28 @@ export async function GET(
       },
     });
   }
-  const match = /^bytes=(\d*)-(\d*)$/.exec(range);
-  if (!match) {
+  const parsedRange = parseSingleByteRange(range, asset.byteLength);
+  if (!parsedRange) {
     return new Response(null, {
       status: 416,
-      headers: { "Content-Range": `bytes */${video.byteLength}` },
+      headers: { "Content-Range": `bytes */${asset.byteLength}` },
     });
   }
-  const start = match[1] ? Number(match[1]) : 0;
-  const requestedEnd = match[2] ? Number(match[2]) : video.byteLength - 1;
-  const end = Math.min(requestedEnd, video.byteLength - 1);
-  if (!Number.isSafeInteger(start) || start < 0 || start > end) {
-    return new Response(null, {
-      status: 416,
-      headers: { "Content-Range": `bytes */${video.byteLength}` },
-    });
+  const { start, end } = parsedRange;
+  let chunk: Buffer;
+  try {
+    chunk = await readRenderedVideo(asset.assetKey, { start, end });
+  } catch (error) {
+    return isStoredAssetNotFound(error)
+      ? problem(404, "NOT_FOUND", "Video was not found.")
+      : problem(502, "STORAGE_UNAVAILABLE", "Video storage is unavailable.");
   }
-  const chunk = video.subarray(start, end + 1);
   return new Response(new Uint8Array(chunk), {
     status: 206,
     headers: {
       ...commonHeaders,
       "Content-Length": String(chunk.byteLength),
-      "Content-Range": `bytes ${start}-${end}/${video.byteLength}`,
+      "Content-Range": `bytes ${start}-${end}/${asset.byteLength}`,
     },
   });
 }

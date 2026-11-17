@@ -1,6 +1,8 @@
 import { getNarrationSceneAsset } from "@motionly/db";
+import { parseSingleByteRange } from "@motionly/shared";
 import { auth } from "../../../../../../../../../../lib/auth";
 import { readNarrationAudio } from "../../../../../../../../../../lib/narration-storage";
+import { isStoredAssetNotFound } from "../../../../../../../../../../lib/object-storage";
 
 export const runtime = "nodejs";
 
@@ -36,12 +38,6 @@ export async function GET(
   );
   if (!asset) return problem(404, "NOT_FOUND", "Audio was not found.");
 
-  let audio: Buffer;
-  try {
-    audio = await readNarrationAudio(asset.assetKey);
-  } catch {
-    return problem(404, "NOT_FOUND", "Audio was not found.");
-  }
   const range = request.headers.get("range");
   const commonHeaders = {
     "Accept-Ranges": "bytes",
@@ -50,6 +46,14 @@ export async function GET(
     "X-Content-Type-Options": "nosniff",
   };
   if (!range) {
+    let audio: Buffer;
+    try {
+      audio = await readNarrationAudio(asset.assetKey);
+    } catch (error) {
+      return isStoredAssetNotFound(error)
+        ? problem(404, "NOT_FOUND", "Audio was not found.")
+        : problem(502, "STORAGE_UNAVAILABLE", "Audio storage is unavailable.");
+    }
     return new Response(new Uint8Array(audio), {
       status: 200,
       headers: {
@@ -59,29 +63,35 @@ export async function GET(
     });
   }
 
-  const match = /^bytes=(\d*)-(\d*)$/.exec(range);
-  if (!match) {
+  const totalLength = asset.byteLength;
+  if (!totalLength) {
     return new Response(null, {
       status: 416,
-      headers: { "Content-Range": `bytes */${audio.byteLength}` },
+      headers: { "Content-Range": "bytes */*" },
     });
   }
-  const start = match[1] ? Number(match[1]) : 0;
-  const requestedEnd = match[2] ? Number(match[2]) : audio.byteLength - 1;
-  const end = Math.min(requestedEnd, audio.byteLength - 1);
-  if (!Number.isSafeInteger(start) || start < 0 || start > end) {
+  const parsedRange = parseSingleByteRange(range, totalLength);
+  if (!parsedRange) {
     return new Response(null, {
       status: 416,
-      headers: { "Content-Range": `bytes */${audio.byteLength}` },
+      headers: { "Content-Range": `bytes */${totalLength}` },
     });
   }
-  const chunk = audio.subarray(start, end + 1);
+  const { start, end } = parsedRange;
+  let chunk: Buffer;
+  try {
+    chunk = await readNarrationAudio(asset.assetKey, { start, end });
+  } catch (error) {
+    return isStoredAssetNotFound(error)
+      ? problem(404, "NOT_FOUND", "Audio was not found.")
+      : problem(502, "STORAGE_UNAVAILABLE", "Audio storage is unavailable.");
+  }
   return new Response(new Uint8Array(chunk), {
     status: 206,
     headers: {
       ...commonHeaders,
       "Content-Length": String(chunk.byteLength),
-      "Content-Range": `bytes ${start}-${end}/${audio.byteLength}`,
+      "Content-Range": `bytes ${start}-${end}/${totalLength}`,
     },
   });
 }

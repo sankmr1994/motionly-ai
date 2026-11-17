@@ -3,7 +3,7 @@
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
 Last updated: **2026-11-15**
-Current implementation phase: **Phases 5C and 6 plus creator-discovery and video-library UX implemented locally**
+Current implementation phase: **Phases 5C and 6 plus private Cloudflare R2 media storage implemented locally**
 Next planned phase: **Phase 7 — Manual Instagram publishing foundation**
 
 ## 1. Product summary
@@ -23,8 +23,8 @@ V1 is creator-first and Instagram-first. Billing, subscriptions, payments, and i
 | Phase 2                  | Email/password authentication, verification, recovery, and onboarding            | Core flow implemented; live recovery delivery check remains                                     |
 | Phase 3                  | Dashboard and project management                                                 | Complete and product-owner approved                                                             |
 | Phase 4                  | Idea-to-storyboard workflow                                                      | Complete: generation, references, revision history, editing, review, regeneration, and approval |
-| Phase 5                  | Production video-generation pipeline                                             | Local pipeline complete: narration, captions, deterministic timeline, and MP4 rendering         |
-| Phase 6                  | Completed-video experience                                                       | Implemented locally: playback, confirmation, approval, and protected MP4 download               |
+| Phase 5                  | Production video-generation pipeline                                             | Complete locally: narration, captions, rendering, and private R2 media persistence              |
+| Phase 6                  | Completed-video experience                                                       | Complete locally: R2 playback, confirmation, approval, and protected MP4 download               |
 | Phase 7                  | Manual Instagram publishing and one-time scheduling                              | Designed; not implemented                                                                       |
 | Phase 8                  | Recurring content generation and publishing                                      | Designed; not implemented                                                                       |
 | Phase 9                  | Production hardening and launch                                                  | Not started                                                                                     |
@@ -141,7 +141,7 @@ Phase 5A narration vertical slice implemented on **2026-11-14**:
 - Added migration `003-narration-job-indexes` plus readiness and speech-metadata regression tests. The automated suite now contains 37 passing tests.
 - Local end-to-end verification passed on **2026-11-14**: an approved six-scene storyboard generated real ElevenLabs audio in about eight seconds, stored six private MP3 assets, streamed every scene through authenticated byte-range responses, displayed 47.6 seconds of combined audio, and successfully started and paused sequential full-narration playback.
 - Final Phase 5A verification passed: formatting, all workspace type checks, all 37 automated tests, diff validation, and the optimized Next.js production build.
-- The current request execution is synchronous while the durable job remains the source of truth. Inngest execution and private Cloudflare R2 storage remain required before production deployment; R2 credentials are not configured in the current local environment.
+- The current request execution is synchronous while the durable job remains the source of truth. Inngest execution remains required before production deployment. Narration generated before the R2 milestone remains readable through the legacy private-local fallback.
 
 Phase 5B caption review vertical slice implemented on **2026-11-14**:
 
@@ -164,14 +164,30 @@ Phases 5C and 6 video rendering and review implemented on **2026-11-14**:
 - Added deterministic render compilation that combines the exact approved storyboard, completed per-scene narration assets, and approved caption cues. Each scene expands to the greater of its planned duration or actual narration duration so speech is never cut off.
 - Added a registered generic visual fallback for allowlisted storyboard templates while preserving the existing specialized binary-search, finance, eclipse, and diagram compositions. Model output remains validated data and is never executed as code.
 - Added durable owner-scoped `renderJobs` with input hashing, completed-render reuse, active-render blocking, interrupted-job recovery, retryable safe failures, progress, output metadata, and finished-video approval state.
-- Added ignored private local MP4 storage, authenticated owner-scoped byte-range streaming, and an approval-gated download response. Raw storage paths are not exposed.
+- Added private MP4 persistence, authenticated owner-scoped byte-range streaming, and an approval-gated download response. Raw storage paths are not exposed.
 - Added a visible `Generate video` handoff after caption approval, automatic render-status refresh, compact failure/retry handling, a private 9:16 finished-video player, output summary, approval confirmation, and MP4 download after approval.
 - Upgraded the generic visual layer after product-owner review: title scenes use an animated concept orbit, definition scenes use a connected value flow, lists use readable staggered milestones, processes use moving pipeline indicators, and finance charts use source labels plus animated growth paths. This also fixes invisible white-on-white labels that previously left only `01`, `02`, and `03` markers visible.
 - Replaced coarse fixed render progress with Remotion renderer callbacks. Durable job progress now follows actual bundling, frame rendering, encoding, and muxing from 5–99%, then moves to 100% only after the MP4 is safely recorded.
 - Versioned the deterministic render pipeline so an older completed video is not silently reused after a motion-system upgrade. The review page offers `Render improved video` when its saved output came from an earlier pipeline.
 - Added and applied migration `004-render-job-indexes` plus deterministic render-timeline/readiness regression tests. Automated verification passed with all workspace type checks, all **49** tests, and the optimized Next.js production build.
 - Per the product owner's standing preference, signed-in browser QA and a live MP4 render were not run automatically. The first product-owner-triggered local render remains the final runtime confirmation for the installed browser/codec environment.
-- Local request-triggered background execution and local media storage are development adapters. Inngest execution and private Cloudflare R2 storage remain required before production deployment.
+- Local request-triggered background execution remains a development adapter. Inngest execution is still required before production deployment.
+
+Private Cloudflare R2 media storage implemented on **2026-11-15**:
+
+- Created a dedicated private `motionly-ai-media` bucket and a least-privilege account token restricted to object read/write operations in that bucket only. Real credentials remain in ignored `.env.local`.
+- Added typed all-or-nothing R2 environment validation, account-to-endpoint validation, the official S3-compatible client, and private object namespaces.
+- Replaced opaque job-first folders with user-grouped, readable project keys: `users/{ownerId}/projects/{title-slug}--{projectId}/revision-{revision}/narration/{jobId}/{sceneId}.mp3` and the matching `video/{jobId}/motionly-video.mp4` path. The stable internal owner ID avoids exposing email addresses, Unicode titles are supported, and immutable IDs preserve uniqueness and reliable database mapping.
+- New ElevenLabs scene audio uploads directly to R2. Remotion still uses a temporary local workspace, uploads the completed MP4 to R2 before the render job is marked complete, and removes the local workspace afterward.
+- Authenticated owner-scoped audio and video endpoints support bounded, open-ended, and suffix byte ranges while keeping the bucket private. MongoDB remains the authoritative metadata store and contains object keys rather than media bytes.
+- Project deletion and failed-generation cleanup remove matching R2 prefixes. Upload-before-database-completion failures remove the uploaded MP4 to avoid orphaned output.
+- Added an idempotent legacy-media migration. The configured development database copied **12 narration assets and 3 completed MP4s** into readable project/revision keys and updated MongoDB references. Legacy R2 source objects and local rollback copies remain retained pending explicit deletion approval. The legacy reader remains available for unmigrated environments.
+- Added `pnpm check:r2` for connection verification and `pnpm check:r2:storage` for a temporary upload, full read, byte-range read, and deletion contract check. Both passed against the configured bucket.
+- Final verification passed: formatting, all workspace type checks, all **64** automated tests, the optimized Next.js production build, diff validation, ignored-secret checks, and the live R2 storage contract.
+- Signed-in Chrome verification passed after the readable-key migration: a migrated 45-second video streamed and played with audio/captions, its approved 3.3 MB MP4 downloaded successfully, and Cloudflare displayed readable project-title folders. No legacy objects were deleted.
+- On **2026-11-16**, all current media was copied once more into non-PII, user-grouped `users/{ownerId}/projects/...` keys. MongoDB references were updated for **12 narration assets and 3 videos**; an immediate repeat migrated **0/0**, proving idempotency. A live integrity audit confirmed **1 user folder**, correct owner prefixes, and successful byte-range reads for every referenced object. The earlier `projects/`, `narrations/`, and `renders/` copies remain retained pending explicit deletion approval.
+- Added a protected `/admin/media` view on **2026-11-16**. A verified email allowlist controls access; ordinary users receive no navigation entry and cannot open the route. The compact view safely maps MongoDB account names/emails to stable, non-PII R2 owner prefixes and shows per-user project, narration, video, and byte totals. Its read-only live aggregation verified **1 user, 4 projects, 12 narration assets, and 3 videos**.
+- Refined the media-admin view after storage-count review: archived/deleted projects are excluded; project rows separately expose storyboard, narration, and finished-video workflow state; and every referenced audio/MP4 is checked live with an R2 metadata request. The summary now distinguishes **video projects** from historical **MP4 files**. Live reconciliation found **4 active projects, 12 audio files, 2 video projects, 3 MP4 files, and 0 missing R2 objects**; one compound-interest project legitimately owns two render outputs.
 
 Creator-discovery and video-library follow-up implemented on **2026-11-15**:
 
@@ -190,7 +206,7 @@ The repository already proves the deterministic rendering approach with three na
 
 The safety boundary is non-negotiable: model output is data, never executable code. Storyboards must pass the Zod contract and may reference only registered templates/actions.
 
-Generated media is local-only under `out/` and `storage/` and must remain uncommitted.
+POC and legacy generated media under `out/` and `storage/` remains local and uncommitted. New application narration and completed MP4 assets are private R2 objects; local render workspaces are temporary.
 
 ## 6. Approved architecture
 
@@ -199,7 +215,7 @@ Generated media is local-only under `out/` and `storage/` and must remain uncomm
 - Authentication: Better Auth email/password with verification, Resend delivery, and MongoDB adapter (Phase 2)
 - Metadata: MongoDB Atlas through the official driver and repository interfaces
 - Durable workflows: Inngest (Phase 5)
-- Media storage: private local adapter for Phase 5A development; private Cloudflare R2 with signed access before production
+- Media storage: private Cloudflare R2 through authenticated owner-scoped application routes; legacy local assets remain readable during transition
 - Rendering: Remotion worker; Remotion Lambda is a later measured scaling option
 - AI planning: Gemini with configurable model identifier
 - Voice: ElevenLabs; configured local voice is **Motionly Indian Educator**
@@ -236,6 +252,9 @@ out                      Ignored rendered videos
 ```bash
 pnpm install
 pnpm verify
+pnpm check:r2
+pnpm check:r2:storage
+pnpm migrate:r2-media
 pnpm dev
 ```
 
@@ -253,7 +272,7 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 - MongoDB Atlas is configured and connectivity-tested locally; production deployment configuration remains deferred.
 - Remotion licensing must be confirmed before commercial production launch.
 - The production Gemini model remains environment-configurable. Live account verification currently supports and uses `gemini-3.5-flash-lite`; `gemini-2.5-flash-lite` is listed by the API but rejects new users and must not be selected.
-- Better Auth, project repositories, durable local narration/render jobs, caption review snapshots, and private local media streaming are wired. Inngest execution, R2 storage, and Sentry remain deferred to their planned production-hardening slices.
+- Better Auth, project repositories, durable narration/render jobs, caption review snapshots, and private R2 media persistence are wired. Inngest execution and Sentry remain deferred to their planned production-hardening slices. Direct short-lived R2 URLs remain a later performance optimization; current authenticated routes preserve owner checks and private downloads.
 - Instagram publishing requires an eligible Creator or Business account and Meta app review; it is design-only today.
 - Stitch screens 01–18 are approved. The public homepage and authenticated workflow through finished-video review are implemented; Instagram publishing and scheduling screens remain design-only.
 

@@ -417,10 +417,12 @@ Rules:
 
 ### Download path
 
-1. Browser requests `/api/assets/:id/url`.
+1. Browser requests the authenticated owner-scoped narration or finished-video route.
 2. API loads the asset with `ownerId` scope.
-3. API creates a short-lived signed R2 URL.
-4. Browser streams directly from R2; Vercel does not proxy the MP4.
+3. API reads only the requested R2 byte range and returns a private, non-cacheable response.
+4. Approved-video downloads add a safe attachment filename; unapproved downloads are rejected.
+
+Short-lived direct R2 URLs may replace application proxying later if production traffic measurements justify that optimization; ownership verification remains mandatory before signing.
 
 ### Retention
 

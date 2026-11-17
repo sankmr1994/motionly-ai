@@ -793,6 +793,7 @@ export type DeleteProjectResult =
       status: "deleted";
       narrationJobIds: string[];
       renderJobIds: string[];
+      assetKeys: string[];
     }
   | { status: "busy" }
   | { status: "not_found" };
@@ -845,12 +846,23 @@ export async function deleteProject(
       }
 
       const narrationJobs = await database
-        .collection<{ _id: ObjectId }>("narrationJobs")
-        .find({ ownerId, projectId: id }, { session, projection: { _id: 1 } })
+        .collection<{
+          _id: ObjectId;
+          scenes?: Array<{ assetKey?: string }>;
+        }>("narrationJobs")
+        .find(
+          { ownerId, projectId: id },
+          { session, projection: { _id: 1, "scenes.assetKey": 1 } },
+        )
         .toArray();
       const renderJobs = await database
-        .collection<{ _id: ObjectId }>("renderJobs")
-        .find({ ownerId, projectId: id }, { session, projection: { _id: 1 } })
+        .collection<{ _id: ObjectId; output?: { assetKey?: string } }>(
+          "renderJobs",
+        )
+        .find(
+          { ownerId, projectId: id },
+          { session, projection: { _id: 1, "output.assetKey": 1 } },
+        )
         .toArray();
 
       await database
@@ -873,6 +885,16 @@ export async function deleteProject(
         status: "deleted",
         narrationJobIds: narrationJobs.map((job) => job._id.toHexString()),
         renderJobIds: renderJobs.map((job) => job._id.toHexString()),
+        assetKeys: [
+          ...narrationJobs.flatMap((job) =>
+            (job.scenes ?? []).flatMap((scene) =>
+              scene.assetKey ? [scene.assetKey] : [],
+            ),
+          ),
+          ...renderJobs.flatMap((job) =>
+            job.output?.assetKey ? [job.output.assetKey] : [],
+          ),
+        ],
       };
     });
     return result;
