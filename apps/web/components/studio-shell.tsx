@@ -8,7 +8,7 @@ export function StudioShell({
   children,
   user,
 }: {
-  active: "videos" | "create" | "admin";
+  active: "videos" | "create" | "settings" | "admin";
   children: React.ReactNode;
   user: { name: string; email: string };
 }) {
@@ -50,10 +50,13 @@ export function StudioShell({
             <StudioIcon name="examples" />
             Examples
           </span>
-          <span aria-disabled="true" title="Coming in a later phase">
+          <Link
+            className={active === "settings" ? "active" : ""}
+            href="/dashboard/settings"
+          >
             <StudioIcon name="settings" />
             Settings
-          </span>
+          </Link>
           {isAdmin ? (
             <Link
               className={active === "admin" ? "active" : ""}
@@ -115,10 +118,13 @@ export function StudioShell({
           <StudioIcon name="add" />
           Create
         </Link>
-        <span aria-disabled="true">
+        <Link
+          className={active === "settings" ? "active" : ""}
+          href="/dashboard/settings"
+        >
           <StudioIcon name="settings" />
           Settings
-        </span>
+        </Link>
         {isAdmin ? (
           <Link
             className={active === "admin" ? "active" : ""}

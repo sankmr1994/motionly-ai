@@ -99,4 +99,26 @@ export const migrations: Migration[] = [
         .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
     },
   },
+  {
+    id: "006-instagram-connection-indexes",
+    description:
+      "Add owner-scoped Instagram connection and OAuth state indexes",
+    async up(database) {
+      await database
+        .collection("socialConnections")
+        .createIndex({ ownerId: 1, provider: 1 }, { unique: true });
+      await database
+        .collection("socialConnections")
+        .createIndex({ provider: 1, status: 1, updatedAt: -1 });
+      await database
+        .collection("instagramOAuthStates")
+        .createIndex({ stateHash: 1 }, { unique: true });
+      await database
+        .collection("instagramOAuthStates")
+        .createIndex({ ownerId: 1, createdAt: -1 });
+      await database
+        .collection("instagramOAuthStates")
+        .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+    },
+  },
 ];

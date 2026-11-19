@@ -17,6 +17,176 @@
   --body: "Geist", Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
+/* Settings and Instagram connection */
+.settings-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 26px;
+}
+
+.settings-heading h1 {
+  margin: 8px 0 6px;
+  color: #10203a;
+  font-size: clamp(40px, 5vw, 64px);
+  letter-spacing: -0.055em;
+  line-height: 0.96;
+}
+
+.settings-heading p,
+.settings-section header p,
+.settings-notice p,
+.instagram-connection-copy p,
+.instagram-privacy-note p {
+  margin: 0;
+  color: #6d7890;
+  line-height: 1.55;
+}
+
+.settings-notice {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 18px;
+  border: 1px solid #dce2ef;
+  background: #fff;
+  padding: 14px 18px;
+}
+
+.settings-notice.success {
+  border-color: #b8df89;
+  background: #f4fae9;
+}
+
+.settings-notice.danger {
+  border-color: #efc2c8;
+  background: #fff5f6;
+}
+
+.settings-section {
+  border: 1px solid #d9e0ec;
+  background: #fff;
+}
+
+.settings-section > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 30px;
+  border-bottom: 1px solid #e2e7ef;
+  padding: 26px 28px 22px;
+}
+
+.settings-section h2 {
+  margin: 7px 0 5px;
+  color: #10203a;
+  font-size: 28px;
+  letter-spacing: -0.035em;
+}
+
+.connection-badge {
+  flex: 0 0 auto;
+  border: 1px solid #d8deea;
+  color: #7b8497;
+  padding: 8px 10px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.connection-badge.connected {
+  border-color: #b9df8f;
+  background: #f3fae8;
+  color: #347128;
+}
+
+.instagram-connection-card {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  margin: 22px 28px;
+  border: 1px solid #dce2ee;
+  background: #f8faff;
+  padding: 20px;
+}
+
+.instagram-mark {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 50%;
+  background: #3158ec;
+  color: #fff;
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.instagram-connection-copy h3 {
+  margin: 0 0 4px;
+  color: #12213a;
+  font-size: 18px;
+}
+
+.instagram-connection-copy small {
+  display: block;
+  margin-top: 7px;
+  color: #778198;
+}
+
+.instagram-connect-button {
+  min-width: 190px;
+  justify-content: center;
+}
+
+.instagram-connect-button svg {
+  width: 17px;
+}
+
+.instagram-setup-pending {
+  color: #8a5d00;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.instagram-privacy-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-top: 1px solid #e2e7ef;
+  padding: 15px 28px;
+  background: #fbfcfe;
+}
+
+.instagram-privacy-note span {
+  color: #3158ec;
+  font-weight: 900;
+}
+
+@media (max-width: 720px) {
+  .settings-section > header {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .instagram-connection-card {
+    grid-template-columns: 48px 1fr;
+    margin: 16px;
+    padding: 16px;
+  }
+
+  .instagram-mark {
+    width: 46px;
+    height: 46px;
+  }
+
+  .instagram-connect-button,
+  .instagram-setup-pending {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 560px) {
   .trending-ideas-heading {
     align-items: flex-start;

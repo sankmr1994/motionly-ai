@@ -2,9 +2,9 @@
 
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
-Last updated: **2026-11-15**
-Current implementation phase: **Phases 5C and 6 plus private Cloudflare R2 media storage implemented locally**
-Next planned phase: **Phase 7 — Manual Instagram publishing foundation**
+Last updated: **2026-11-19**
+Current implementation phase: **Phase 7A — Instagram account-connection foundation verified locally**
+Next planned phase: **Prepare Vercel Hobby deployment and migrate rendering to Vercel Sandbox**
 
 ## 1. Product summary
 
@@ -25,7 +25,7 @@ V1 is creator-first and Instagram-first. Billing, subscriptions, payments, and i
 | Phase 4                  | Idea-to-storyboard workflow                                                      | Complete: generation, references, revision history, editing, review, regeneration, and approval |
 | Phase 5                  | Production video-generation pipeline                                             | Complete locally: narration, captions, rendering, and private R2 media persistence              |
 | Phase 6                  | Completed-video experience                                                       | Complete locally: R2 playback, confirmation, approval, and protected MP4 download               |
-| Phase 7                  | Manual Instagram publishing and one-time scheduling                              | Designed; not implemented                                                                       |
+| Phase 7                  | Manual Instagram publishing and one-time scheduling                              | In progress: secure account-connection foundation implemented                                   |
 | Phase 8                  | Recurring content generation and publishing                                      | Designed; not implemented                                                                       |
 | Phase 9                  | Production hardening and launch                                                  | Not started                                                                                     |
 
@@ -196,6 +196,17 @@ Creator-discovery and video-library follow-up implemented on **2026-11-15**:
 - Added direct finished-video workflow actions to every My Videos card using one owner-scoped batch query: View progress, Retry video, Review video, or Watch video. Users no longer need to traverse storyboard, narration, and captions to reopen a finished render.
 - Added and applied migration `005-topic-suggestion-cache-indexes`. Provider quota errors now produce a specific safe message and fall back to the last cached topic set when one exists. Formatting, all workspace type checks, all **55** automated tests, and the optimized production build passed; signed-in browser testing was intentionally left to the product owner.
 
+Phase 7A Instagram account-connection foundation implemented on **2026-11-19**:
+
+- Added a first-class Settings destination and a compact Instagram connection card aligned to the existing Porcelain Cobalt studio. One Connect Instagram action opens Meta in a focused popup, returns the result to the original Settings page, and never exposes provider credential fields.
+- Added authenticated OAuth start and callback routes for Meta Unified Login. Every attempt uses a cryptographically random, ten-minute, owner-bound, single-use state plus an HTTP-only SameSite cookie before a provider code is accepted.
+- Added server-only Meta configuration validation for the App ID, App Secret, Unified Login configuration ID, exact HTTPS redirect URI, Graph version, and a separate 32-byte integration-encryption key. No real Meta credentials are committed.
+- Added AES-256-GCM access-token encryption before MongoDB persistence. Connection responses expose only safe account/status metadata; tokens and Meta secrets never reach the browser.
+- Added owner-scoped `socialConnections` and expiring `instagramOAuthStates` repositories plus migration `006-instagram-connection-indexes`. The migration is committed but its Atlas run remains pending because the remote runner did not complete within the bounded verification window.
+- Added Facebook Graph account resolution with an Instagram Graph fallback so the callback can handle the currently selected Unified Login configuration and Instagram-only account responses without weakening owner isolation.
+- Automated verification passed: all workspace type checks, all **69** tests, and the optimized Next.js production build. Manual signed-in browser testing was intentionally left to the product owner.
+- Phase 1 stabilization is complete on the `develop` branch: the full Instagram foundation was reviewed, formatting passed, all workspace type checks passed, all **69** automated tests passed, and the optimized Next.js build exposed both OAuth routes and the Settings page successfully. No Meta credentials were added and migration `006` remains intentionally unapplied until the deployed HTTPS environment is configured.
+
 ## 5. Existing validated video POCs
 
 The repository already proves the deterministic rendering approach with three narrated vertical videos:
@@ -273,12 +284,12 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 - Remotion licensing must be confirmed before commercial production launch.
 - The production Gemini model remains environment-configurable. Live account verification currently supports and uses `gemini-3.5-flash-lite`; `gemini-2.5-flash-lite` is listed by the API but rejects new users and must not be selected.
 - Better Auth, project repositories, durable narration/render jobs, caption review snapshots, and private R2 media persistence are wired. Inngest execution and Sentry remain deferred to their planned production-hardening slices. Direct short-lived R2 URLs remain a later performance optimization; current authenticated routes preserve owner checks and private downloads.
-- Instagram publishing requires an eligible Creator or Business account and Meta app review; it is design-only today.
+- Instagram account connection is implemented locally but not live-configured. It still requires the Meta App Secret, a working deployed HTTPS callback on the same Motionly origin, the Unified Login configuration ID, an encryption key, one eligible test Creator/Business account, and later Meta App Review. Publishing and scheduling remain design-only.
 - Stitch screens 01–18 are approved. The public homepage and authenticated workflow through finished-video review are implemented; Instagram publishing and scheduling screens remain design-only.
 
 ## 10. Exact next action
 
-Begin Phase 7 with the manual Instagram publishing foundation: connect an eligible Creator or Business account, retain review-before-publish as the default, and publish only a user-approved completed video.
+Prepare the monorepo for Vercel Hobby, deploy the web application to a temporary `vercel.app` preview, and replace production use of the local child-process renderer with detached Vercel Sandbox rendering that uploads completed MP4 files to private Cloudflare R2. After the final domain is connected, register its exact `/api/v1/integrations/instagram/oauth/callback` URL in Meta, apply migration `006`, and verify one owner-scoped test-account connection.
 
 ## 11. Update protocol for future developers and agents
 

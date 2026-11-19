@@ -53,4 +53,23 @@ describe("server environment", () => {
     expect(getAdminEmails()).toEqual(["owner@example.com", "team@example.com"]);
     delete process.env.MOTIONLY_ADMIN_EMAILS;
   });
+
+  it("requires the complete Instagram configuration", () => {
+    expect(() => parseServerEnv({ META_APP_ID: "123456" })).toThrow(
+      "All Meta Instagram settings must be configured together",
+    );
+  });
+
+  it("requires an HTTPS Instagram callback", () => {
+    expect(() =>
+      parseServerEnv({
+        META_APP_ID: "123456",
+        META_APP_SECRET: "secret",
+        META_INSTAGRAM_CONFIG_ID: "config",
+        META_INSTAGRAM_REDIRECT_URI:
+          "http://localhost:3000/api/v1/integrations/instagram/oauth/callback",
+        INTEGRATION_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"),
+      }),
+    ).toThrow("META_INSTAGRAM_REDIRECT_URI must use HTTPS");
+  });
 });

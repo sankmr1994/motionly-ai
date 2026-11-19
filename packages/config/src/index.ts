@@ -34,6 +34,16 @@ export const serverEnvironmentSchema = z
     RESEND_API_KEY: optionalSecret,
     RESEND_FROM_EMAIL: z.string().trim().email().optional(),
     MOTIONLY_ADMIN_EMAILS: z.string().trim().optional(),
+    META_APP_ID: optionalSecret,
+    META_APP_SECRET: optionalSecret,
+    META_INSTAGRAM_CONFIG_ID: optionalSecret,
+    META_INSTAGRAM_REDIRECT_URI: z.url().optional().or(z.literal("")),
+    META_GRAPH_VERSION: z
+      .string()
+      .trim()
+      .regex(/^v\d+\.\d+$/)
+      .default("v27.0"),
+    INTEGRATION_ENCRYPTION_KEY: optionalSecret,
     R2_ACCOUNT_ID: optionalSecret,
     R2_BUCKET_NAME: optionalSecret,
     R2_ENDPOINT: optionalSecret,
@@ -77,6 +87,51 @@ export const serverEnvironmentSchema = z
           code: "custom",
           path: ["R2_ENDPOINT"],
           message: "R2_ENDPOINT must be the HTTPS endpoint for R2_ACCOUNT_ID",
+        });
+      }
+    }
+
+    const metaKeys = [
+      "META_APP_ID",
+      "META_APP_SECRET",
+      "META_INSTAGRAM_CONFIG_ID",
+      "META_INSTAGRAM_REDIRECT_URI",
+      "INTEGRATION_ENCRYPTION_KEY",
+    ] as const;
+    const configuredMetaKeys = metaKeys.filter((key) => environment[key]);
+    if (
+      configuredMetaKeys.length > 0 &&
+      configuredMetaKeys.length < metaKeys.length
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["META_APP_ID"],
+        message: "All Meta Instagram settings must be configured together",
+      });
+    }
+    if (
+      environment.META_INSTAGRAM_REDIRECT_URI &&
+      !environment.META_INSTAGRAM_REDIRECT_URI.startsWith("https://")
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["META_INSTAGRAM_REDIRECT_URI"],
+        message: "META_INSTAGRAM_REDIRECT_URI must use HTTPS",
+      });
+    }
+    if (environment.INTEGRATION_ENCRYPTION_KEY) {
+      try {
+        const decoded = Buffer.from(
+          environment.INTEGRATION_ENCRYPTION_KEY,
+          "base64",
+        );
+        if (decoded.length !== 32) throw new Error("invalid length");
+      } catch {
+        context.addIssue({
+          code: "custom",
+          path: ["INTEGRATION_ENCRYPTION_KEY"],
+          message:
+            "INTEGRATION_ENCRYPTION_KEY must be a base64-encoded 32-byte key",
         });
       }
     }
@@ -167,4 +222,45 @@ export function getAdminEmails(): string[] {
     );
   }
   return [...new Set(emails)];
+}
+
+export function getInstagramConfig(): {
+  appId: string;
+  appSecret: string;
+  configurationId: string;
+  redirectUri: string;
+  graphVersion: string;
+  encryptionKey: string;
+} {
+  const environment = getServerEnv();
+  if (
+    !environment.META_APP_ID ||
+    !environment.META_APP_SECRET ||
+    !environment.META_INSTAGRAM_CONFIG_ID ||
+    !environment.META_INSTAGRAM_REDIRECT_URI ||
+    !environment.INTEGRATION_ENCRYPTION_KEY
+  ) {
+    throw new Error(
+      "Instagram is not configured. Set all Meta Instagram environment variables.",
+    );
+  }
+  return {
+    appId: environment.META_APP_ID,
+    appSecret: environment.META_APP_SECRET,
+    configurationId: environment.META_INSTAGRAM_CONFIG_ID,
+    redirectUri: environment.META_INSTAGRAM_REDIRECT_URI,
+    graphVersion: environment.META_GRAPH_VERSION,
+    encryptionKey: environment.INTEGRATION_ENCRYPTION_KEY,
+  };
+}
+
+export function isInstagramConfigured(): boolean {
+  const environment = getServerEnv();
+  return Boolean(
+    environment.META_APP_ID &&
+    environment.META_APP_SECRET &&
+    environment.META_INSTAGRAM_CONFIG_ID &&
+    environment.META_INSTAGRAM_REDIRECT_URI &&
+    environment.INTEGRATION_ENCRYPTION_KEY,
+  );
 }
