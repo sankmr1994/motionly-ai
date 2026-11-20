@@ -67,12 +67,17 @@ export async function loadTrendingTopics(
       sources: result.sources,
       generatedAt: result.generatedAt,
       cached: result.cached,
-      ...(result.stale
+      ...(result.fallbackMode === "evergreen"
         ? {
             message:
-              "Showing your last saved ideas because live topic discovery is unavailable right now.",
+              "Live topic discovery is temporarily unavailable, so here are reliable starter ideas matched to your preferences.",
           }
-        : {}),
+        : result.stale
+          ? {
+              message:
+                "Showing your last saved ideas because live topic discovery is unavailable right now.",
+            }
+          : {}),
     };
   } catch (error) {
     if (error instanceof TrendingTopicsError && error.status === 429) {

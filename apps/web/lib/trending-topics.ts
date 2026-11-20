@@ -1,4 +1,5 @@
 import {
+  createEvergreenTopicSuggestions,
   generateTrendingTopicSuggestions,
   type TrendingTopicResult,
 } from "@motionly/ai";
@@ -63,9 +64,27 @@ export async function getTrendingTopicsForOwner(input: {
         cached: true,
         stale: true,
         refreshAvailableAt: now.toISOString(),
+        fallbackMode: "stale-cache" as const,
       };
     }
-    throw error;
+    return {
+      suggestions: createEvergreenTopicSuggestions(
+        input.category,
+        input.language,
+      ),
+      sources: [],
+      searchQueries: [],
+      generatedAt: now.toISOString(),
+      model: "motionly-evergreen-fallback",
+      cached: false,
+      stale: true,
+      refreshAvailableAt: now.toISOString(),
+      fallbackMode: "evergreen" as const,
+      providerStatus:
+        typeof error === "object" && error !== null && "status" in error
+          ? Number(error.status) || undefined
+          : undefined,
+    };
   }
   const generatedAt = new Date(result.generatedAt);
   const expiresAt = new Date(generatedAt.getTime() + CACHE_DURATION_MS);

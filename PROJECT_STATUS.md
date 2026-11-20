@@ -3,8 +3,8 @@
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
 Last updated: **2026-11-20**
-Current implementation phase: **Deployment Phase 3 — Vercel Sandbox rendering complete**
-Next planned phase: **Deployment Phase 4 — Create and verify the first Vercel Preview deployment**
+Current implementation phase: **Deployment Phase 4 — Vercel production deployment live; validation in progress**
+Next planned phase: **Complete hosted rendering validation, then connect the final custom domain and Meta callback**
 
 ## 1. Product summary
 
@@ -195,6 +195,7 @@ Creator-discovery and video-library follow-up implemented on **2026-11-15**:
 - Added a three-hour owner-scoped MongoDB suggestion cache and a 15-minute manual-refresh cooldown to avoid repeated provider spend. Topic discovery never runs automatically during page load.
 - Added direct finished-video workflow actions to every My Videos card using one owner-scoped batch query: View progress, Retry video, Review video, or Watch video. Users no longer need to traverse storyboard, narration, and captions to reopen a finished render.
 - Added and applied migration `005-topic-suggestion-cache-indexes`. Provider quota errors now produce a specific safe message and fall back to the last cached topic set when one exists. Formatting, all workspace type checks, all **55** automated tests, and the optimized production build passed; signed-in browser testing was intentionally left to the product owner.
+- Hardened topic discovery for hosted Gemini quota and availability failures on **2026-11-20**. Retryable `429`/`503`/`504` responses now try the configured fallback model; an existing owner cache remains the first fallback, and a curated six-item category/language-aware evergreen set keeps Create Video useful when no live cache exists. The UI clearly labels these as reliable starter ideas rather than falsely presenting them as current trends.
 
 Phase 7A Instagram account-connection foundation implemented on **2026-11-19**:
 
@@ -225,6 +226,14 @@ Vercel deployment Phase 3 completed on **2026-11-20**:
 - Added Hobby safeguards: 720 × 1280 H.264 output, two-vCPU Sandboxes, render concurrency two, a 40-minute detached timeout, a five-minute Server Action ceiling, and no automatic 1080p path.
 - Added hosted render configuration for `VIDEO_RENDER_PROVIDER`, private `BLOB_READ_WRITE_TOKEN`, and `REMOTION_LICENSE_KEY`; no real credentials were committed. The Vercel deployment guide now records the exact lifecycle and environment requirements.
 - Automated verification passed: repository formatting, all workspace type checks, all **74** automated tests, and the optimized Next.js production build. A live Sandbox render remains intentionally deferred until the first Vercel Preview project has OIDC, Blob, R2, and application environment values.
+
+Vercel deployment Phase 4 progress on **2026-11-20**:
+
+- Created the Vercel project with `apps/web` as its Root Directory and deployed `develop` successfully to Production at `https://motionly-ai.vercel.app`.
+- Configured the application environment values as Vercel secrets and connected the private `motionly-ai-blob` store for the temporary Sandbox-to-R2 handoff. Meta credentials remain intentionally unset until the final custom domain is connected.
+- Verified that the public production homepage loads and that authentication works on the canonical production origin. Vercel branch aliases are not canonical Better Auth origins and correctly fail origin validation.
+- The Gemini topic-discovery resilience change passed formatting, all workspace type checks, all **76** automated tests, and the optimized production build. The build initially encountered a Windows sandbox junction restriction and passed unchanged when rerun with the required local filesystem permission.
+- Full hosted narration, R2 playback, and one 720p Sandbox render remain product-owner validation gates before domain purchase and Meta integration.
 
 ## 5. Existing validated video POCs
 
@@ -300,7 +309,7 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 ## 9. Open decisions and known gaps
 
 - MongoDB Atlas is configured and connectivity-tested locally; production deployment configuration remains deferred.
-- Vercel repository and Sandbox rendering configuration are complete, but no Vercel project, preview deployment, private Blob store, or custom domain exists yet. A live hosted render therefore remains unverified.
+- The Vercel production deployment and private Blob store are live at the free canonical `motionly-ai.vercel.app` origin. A custom domain is not connected, and one live hosted Sandbox render remains unverified.
 - Remotion licensing must be confirmed before commercial production launch.
 - The production Gemini model remains environment-configurable. Live account verification currently supports and uses `gemini-3.5-flash-lite`; `gemini-2.5-flash-lite` is listed by the API but rejects new users and must not be selected.
 - Better Auth, project repositories, durable narration/render jobs, caption review snapshots, and private R2 media persistence are wired. Inngest execution and Sentry remain deferred to their planned production-hardening slices. Direct short-lived R2 URLs remain a later performance optimization; current authenticated routes preserve owner checks and private downloads.
@@ -309,7 +318,7 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 
 ## 10. Exact next action
 
-Implement Deployment Phase 4: import `sankmr1994/motionly-ai` into Vercel with `apps/web` as the Root Directory, configure Preview environment values and a private Blob store, deploy `develop`, verify health/auth/R2 behavior, and run one owner-scoped 720p Sandbox render end to end before any Production promotion.
+Validate production narration, authenticated R2 playback/download, and one owner-scoped 30-second 720p Vercel Sandbox render end to end. After those pass, purchase/connect the final domain and configure the matching Meta Instagram OAuth callback.
 
 ## 11. Update protocol for future developers and agents
 

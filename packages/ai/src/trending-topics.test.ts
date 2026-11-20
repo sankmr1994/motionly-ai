@@ -1,8 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
+  createEvergreenTopicSuggestions,
   extractGroundedSources,
   getProviderErrorStatus,
 } from "./trending-topics";
+
+describe("createEvergreenTopicSuggestions", () => {
+  it("returns six category-matched ideas without claiming they are trending", () => {
+    const suggestions = createEvergreenTopicSuggestions("science", "Tamil");
+
+    expect(suggestions).toHaveLength(6);
+    expect(suggestions[0]?.category).toBe("science");
+    expect(suggestions[0]?.whyNow).toContain("evergreen");
+    expect(suggestions[0]?.whyNow).toContain("Tamil");
+  });
+
+  it("uses safe educational ideas for an unknown category", () => {
+    expect(createEvergreenTopicSuggestions("other", "English")).toHaveLength(6);
+  });
+});
 
 describe("extractGroundedSources", () => {
   it("keeps unique HTTPS sources and search queries", () => {
