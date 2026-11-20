@@ -9,6 +9,7 @@ import {
   type VideoRenderInput,
 } from "@motionly/db";
 import { compileApprovedRenderTimeline } from "@motionly/shared";
+import { logger } from "@motionly/observability";
 import { bundle } from "@remotion/bundler";
 import {
   addBundleToSandbox,
@@ -19,6 +20,8 @@ import {
 import { del as deleteBlob, get as getBlob } from "@vercel/blob";
 import { Sandbox } from "@vercel/sandbox";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { readNarrationAudio } from "./narration-storage";
@@ -33,6 +36,33 @@ import {
 } from "./render-storage";
 
 const SANDBOX_RENDER_TIMEOUT_MS = 40 * 60 * 1_000;
+
+type SandboxRenderStage =
+  | "prepare"
+  | "bundle"
+  | "sandbox_create"
+  | "bundle_upload"
+  | "render_start"
+  | "execution_attach";
+
+function getVideoEntryPoint() {
+  const candidates = [
+    resolve(process.cwd(), "../../packages/video/src/register.ts"),
+    resolve(process.cwd(), "packages/video/src/register.ts"),
+    resolve(process.cwd(), "../packages/video/src/register.ts"),
+  ];
+  return (
+    candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]!
+  );
+}
+
+function getErrorFingerprint(error: unknown) {
+  const value =
+    error instanceof Error
+      ? `${error.name}:${error.message}`
+      : String(error);
+  return createHash("sha256").update(value).digest("hex").slice(0, 16);
+}
 
 async function prepareVideoRender(ownerId: string, input: VideoRenderInput) {
   const compiled = compileApprovedRenderTimeline({
@@ -195,14 +225,14 @@ async function startSandboxVideoRender(
   }
   let sandbox: Awaited<ReturnType<typeof createSandbox>> | undefined;
   let bundleDirectory: string | undefined;
+  let stage: SandboxRenderStage = "prepare";
   try {
     const prepared = await prepareVideoRender(ownerId, input);
     await updateVideoRenderProgress(ownerId, input.jobId, 6);
+    stage = "bundle";
+    const entryPoint = getVideoEntryPoint();
     bundleDirectory = await bundle({
-      entryPoint: resolve(
-        process.cwd(),
-        "../../packages/video/src/register.ts",
-      ),
+      entryPoint,
       publicDir: prepared.workspace.publicDir,
       onProgress: (progress) => {
         void updateVideoRenderProgress(
@@ -212,6 +242,7 @@ async function startSandboxVideoRender(
         ).catch(() => undefined);
       },
     });
+    stage = "sandbox_create";
     sandbox = await createSandbox({
       resources: { vcpus: 2 },
       onProgress: ({ progress }) =>
@@ -221,8 +252,10 @@ async function startSandboxVideoRender(
           10 + Math.round(progress * 2),
         ),
     });
+    stage = "bundle_upload";
     await addBundleToSandbox({ sandbox, bundleDir: bundleDirectory });
     const blobPath = `motionly-render-staging/${input.jobId}.mp4`;
+    stage = "render_start";
     const detached = await renderMediaOnVercel({
       sandbox,
       compositionId: "MotionlyExplainer",
@@ -242,6 +275,7 @@ async function startSandboxVideoRender(
         blobPath,
       },
     });
+    stage = "execution_attach";
     await attachVideoRenderExecution(ownerId, input.jobId, {
       provider: "VERCEL_SANDBOX",
       sandboxId: detached.sandboxId,
@@ -268,6 +302,18 @@ async function startSandboxVideoRender(
     }
     await cleanupRenderWorkspace(input.jobId).catch(() => undefined);
     await failVideoRender(ownerId, input.jobId, error).catch(() => undefined);
+    logger.error("video_render_start_failed", {
+      projectId: input.projectId,
+      jobId: input.jobId,
+      provider: "VERCEL_SANDBOX",
+      stage,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      errorMessage:
+        error instanceof Error ? error.message.slice(0, 1_000) : String(error),
+      errorFingerprint: getErrorFingerprint(error),
+      workingDirectory: process.cwd(),
+      videoEntryPoint: getVideoEntryPoint(),
+    });
     throw error;
   }
 }
