@@ -14,7 +14,10 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/*": [
       "../../packages/video/src/**/*",
+      "../../packages/video/package.json",
       "node_modules/@remotion/studio/**/*",
+      "node_modules/@remotion/timeline-utils/**/*",
+      "node_modules/remotion/**/*",
     ],
   },
 };
