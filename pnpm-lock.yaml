@@ -47,6 +47,15 @@ importers:
       '@jridgewell/trace-mapping':
         specifier: 0.3.31
         version: 0.3.31
+      '@mediabunny/aac-encoder':
+        specifier: 1.64.0
+        version: 1.64.0(mediabunny@1.64.0)
+      '@mediabunny/flac-encoder':
+        specifier: 1.64.0
+        version: 1.64.0(mediabunny@1.64.0)
+      '@mediabunny/mp3-encoder':
+        specifier: 1.64.0
+        version: 1.64.0(mediabunny@1.64.0)
       '@motionly/ai':
         specifier: workspace:*
         version: link:../../packages/ai
@@ -75,6 +84,9 @@ importers:
         specifier: 4.0.541
         version: 4.0.541(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@remotion/elevenlabs':
+        specifier: 4.0.541
+        version: 4.0.541
+      '@remotion/licensing':
         specifier: 4.0.541
         version: 4.0.541
       '@remotion/media':
