@@ -274,6 +274,10 @@ async function startSandboxVideoRender(
         ),
     });
     stage = "bundle_upload";
+    // @remotion/vercel creates child directories such as
+    // `remotion-bundle/public`, but current Vercel Sandboxes require the
+    // parent directory to exist first.
+    await sandbox.mkDir("remotion-bundle");
     await addBundleToSandbox({ sandbox, bundleDir: bundleDirectory });
     const blobPath = `motionly-render-staging/${input.jobId}.mp4`;
     stage = "render_start";
