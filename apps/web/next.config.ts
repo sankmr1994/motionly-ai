@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
       "../../packages/shared/package.json",
       "node_modules/@remotion/studio/**/*",
       "node_modules/@remotion/timeline-utils/**/*",
+      "node_modules/mediabunny/**/*",
       "node_modules/remotion/**/*",
     ],
   },
