@@ -1,15 +1,19 @@
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve, sep } from "node:path";
+import { tmpdir } from "node:os";
 import {
   deletePrivatePrefix,
   deletePrivateObjects,
   getPrivateObject,
   isR2ObjectKey,
   putPrivateFile,
+  putPrivateObject,
   type ByteRange,
 } from "./object-storage";
 
-const storageRoot = resolve(process.cwd(), "../../storage/renders");
+const storageRoot = process.env.VERCEL
+  ? resolve(tmpdir(), "motionly-renders")
+  : resolve(process.cwd(), "../../storage/renders");
 const safeSegment = /^[a-zA-Z0-9_.-]+$/;
 const safeJobId = /^[a-zA-Z0-9_-]+$/;
 
@@ -66,6 +70,13 @@ export async function storeRenderedVideo(
   byteLength: number,
 ) {
   await putPrivateFile(assetKey, path, byteLength, "video/mp4");
+}
+
+export async function storeRenderedVideoBytes(
+  assetKey: string,
+  video: Uint8Array,
+) {
+  await putPrivateObject(assetKey, video, "video/mp4");
 }
 
 export async function readRenderedVideo(assetKey: string, range?: ByteRange) {

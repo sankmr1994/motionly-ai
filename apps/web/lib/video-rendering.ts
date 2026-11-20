@@ -1,12 +1,25 @@
+import { getVideoRenderingConfig } from "@motionly/config";
 import {
+  attachVideoRenderExecution,
   beginVideoRender,
   completeVideoRender,
   failVideoRender,
+  getActiveVideoRenderExecution,
   updateVideoRenderProgress,
   type VideoRenderInput,
 } from "@motionly/db";
 import { compileApprovedRenderTimeline } from "@motionly/shared";
+import { bundle } from "@remotion/bundler";
+import {
+  addBundleToSandbox,
+  createSandbox,
+  getRenderProgress,
+  renderMediaOnVercel,
+} from "@remotion/vercel";
+import { del as deleteBlob, get as getBlob } from "@vercel/blob";
+import { Sandbox } from "@vercel/sandbox";
 import { spawn } from "node:child_process";
+import { rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { readNarrationAudio } from "./narration-storage";
 import {
@@ -16,48 +29,65 @@ import {
   getRenderedVideoSize,
   prepareRenderWorkspace,
   storeRenderedVideo,
+  storeRenderedVideoBytes,
 } from "./render-storage";
 
-async function executeVideoRender(ownerId: string, input: VideoRenderInput) {
+const SANDBOX_RENDER_TIMEOUT_MS = 40 * 60 * 1_000;
+
+async function prepareVideoRender(ownerId: string, input: VideoRenderInput) {
+  const compiled = compileApprovedRenderTimeline({
+    storyboard: input.storyboard,
+    audioDurationsSeconds: Object.fromEntries(
+      input.sceneAudio.map((scene) => [scene.sceneId, scene.durationSeconds]),
+    ),
+    captionStyle: input.captions.style,
+    captionScenes: input.captions.scenes,
+  });
+  const audio = await Promise.all(
+    input.sceneAudio.map(async (scene) => ({
+      sceneId: scene.sceneId,
+      audio: await readNarrationAudio(scene.assetKey),
+    })),
+  );
+  const sceneAudioFiles = Object.fromEntries(
+    input.sceneAudio.map((scene) => [
+      scene.sceneId,
+      `${scene.sceneId}_audio.mp3`,
+    ]),
+  );
+  const renderProps = {
+    storyboard: input.storyboard,
+    sceneAudioFiles,
+    sceneDurationsSeconds: compiled.sceneDurationsSeconds,
+    captionStyle: input.captions.style,
+    captions: compiled.captions,
+  };
+  const workspace = await prepareRenderWorkspace(
+    input.jobId,
+    audio,
+    renderProps,
+    {
+      ownerId,
+      projectId: input.projectId,
+      projectTitle: input.projectTitle,
+      revision: input.revision,
+    },
+  );
+  return {
+    compiled,
+    renderProps,
+    workspace,
+    durationSeconds: compiled.durationInFrames / input.storyboard.video.fps,
+  };
+}
+
+async function executeLocalVideoRender(
+  ownerId: string,
+  input: VideoRenderInput,
+) {
   let uploadedAssetKey: string | undefined;
   try {
-    const compiled = compileApprovedRenderTimeline({
-      storyboard: input.storyboard,
-      audioDurationsSeconds: Object.fromEntries(
-        input.sceneAudio.map((scene) => [scene.sceneId, scene.durationSeconds]),
-      ),
-      captionStyle: input.captions.style,
-      captionScenes: input.captions.scenes,
-    });
-    const audio = await Promise.all(
-      input.sceneAudio.map(async (scene) => ({
-        sceneId: scene.sceneId,
-        audio: await readNarrationAudio(scene.assetKey),
-      })),
-    );
-    const sceneAudioFiles = Object.fromEntries(
-      input.sceneAudio.map((scene) => [
-        scene.sceneId,
-        `${scene.sceneId}_audio.mp3`,
-      ]),
-    );
-    const workspace = await prepareRenderWorkspace(
-      input.jobId,
-      audio,
-      {
-        storyboard: input.storyboard,
-        sceneAudioFiles,
-        sceneDurationsSeconds: compiled.sceneDurationsSeconds,
-        captionStyle: input.captions.style,
-        captions: compiled.captions,
-      },
-      {
-        ownerId,
-        projectId: input.projectId,
-        projectTitle: input.projectTitle,
-        revision: input.revision,
-      },
-    );
+    const prepared = await prepareVideoRender(ownerId, input);
     const workspaceRoot = resolve(process.cwd(), "../..");
     const pnpmArgs = [
       "--filter",
@@ -65,9 +95,9 @@ async function executeVideoRender(ownerId: string, input: VideoRenderInput) {
       "exec",
       "node",
       "scripts/render-job.mjs",
-      workspace.propsPath,
-      workspace.publicDir,
-      workspace.outputPath,
+      prepared.workspace.propsPath,
+      prepared.workspace.publicDir,
+      prepared.workspace.outputPath,
     ];
     const command =
       process.platform === "win32"
@@ -119,19 +149,21 @@ async function executeVideoRender(ownerId: string, input: VideoRenderInput) {
       });
     });
     await updateVideoRenderProgress(ownerId, input.jobId, 95);
-    const byteLength = await getRenderedVideoSize(workspace.outputPath);
+    const byteLength = await getRenderedVideoSize(
+      prepared.workspace.outputPath,
+    );
     await storeRenderedVideo(
-      workspace.outputAssetKey,
-      workspace.outputPath,
+      prepared.workspace.outputAssetKey,
+      prepared.workspace.outputPath,
       byteLength,
     );
-    uploadedAssetKey = workspace.outputAssetKey;
+    uploadedAssetKey = prepared.workspace.outputAssetKey;
     await updateVideoRenderProgress(ownerId, input.jobId, 99);
     await completeVideoRender(ownerId, input.jobId, {
-      assetKey: workspace.outputAssetKey,
+      assetKey: prepared.workspace.outputAssetKey,
       mimeType: "video/mp4",
       byteLength,
-      durationSeconds: compiled.durationInFrames / input.storyboard.video.fps,
+      durationSeconds: prepared.durationSeconds,
       width: 720,
       height: 1280,
       fps: 30,
@@ -148,6 +180,173 @@ async function executeVideoRender(ownerId: string, input: VideoRenderInput) {
   }
 }
 
+async function stopSandbox(sandboxId: string) {
+  const sandbox = await Sandbox.get({ sandboxId });
+  await sandbox.stop();
+}
+
+async function startSandboxVideoRender(
+  ownerId: string,
+  input: VideoRenderInput,
+) {
+  const config = getVideoRenderingConfig();
+  if (!config.blobToken) {
+    throw new Error("Temporary private Blob storage is not configured.");
+  }
+  let sandbox: Awaited<ReturnType<typeof createSandbox>> | undefined;
+  let bundleDirectory: string | undefined;
+  try {
+    const prepared = await prepareVideoRender(ownerId, input);
+    await updateVideoRenderProgress(ownerId, input.jobId, 6);
+    bundleDirectory = await bundle({
+      entryPoint: resolve(
+        process.cwd(),
+        "../../packages/video/src/register.ts",
+      ),
+      publicDir: prepared.workspace.publicDir,
+      onProgress: (progress) => {
+        void updateVideoRenderProgress(
+          ownerId,
+          input.jobId,
+          6 + Math.round(progress * 4),
+        ).catch(() => undefined);
+      },
+    });
+    sandbox = await createSandbox({
+      resources: { vcpus: 2 },
+      onProgress: ({ progress }) =>
+        updateVideoRenderProgress(
+          ownerId,
+          input.jobId,
+          10 + Math.round(progress * 2),
+        ),
+    });
+    await addBundleToSandbox({ sandbox, bundleDir: bundleDirectory });
+    const blobPath = `motionly-render-staging/${input.jobId}.mp4`;
+    const detached = await renderMediaOnVercel({
+      sandbox,
+      compositionId: "MotionlyExplainer",
+      inputProps: prepared.renderProps,
+      outputFile: `/tmp/motionly-${input.jobId}.mp4`,
+      codec: "h264",
+      crf: 20,
+      concurrency: 2,
+      logLevel: "warn",
+      licenseKey: config.remotionLicenseKey,
+      isProduction: true,
+      detached: true,
+      detachedSandboxTimeoutInMilliseconds: SANDBOX_RENDER_TIMEOUT_MS,
+      vercelBlob: {
+        blobToken: config.blobToken,
+        access: "private",
+        blobPath,
+      },
+    });
+    await attachVideoRenderExecution(ownerId, input.jobId, {
+      provider: "VERCEL_SANDBOX",
+      sandboxId: detached.sandboxId,
+      commandId: detached.cmdId,
+      blobPath,
+      outputAssetKey: prepared.workspace.outputAssetKey,
+      durationSeconds: prepared.durationSeconds,
+      width: 720,
+      height: 1280,
+      fps: 30,
+    });
+    // The durable execution is attached at this point. Ephemeral cleanup must
+    // never cancel a render that is already running in the Sandbox.
+    await cleanupRenderWorkspace(input.jobId).catch(() => undefined);
+    await rm(bundleDirectory, { recursive: true, force: true }).catch(
+      () => undefined,
+    );
+  } catch (error) {
+    if (sandbox) await sandbox.stop().catch(() => undefined);
+    if (bundleDirectory) {
+      await rm(bundleDirectory, { recursive: true, force: true }).catch(
+        () => undefined,
+      );
+    }
+    await cleanupRenderWorkspace(input.jobId).catch(() => undefined);
+    await failVideoRender(ownerId, input.jobId, error).catch(() => undefined);
+    throw error;
+  }
+}
+
+export async function reconcileVideoRenderForOwner(
+  ownerId: string,
+  projectId: string,
+) {
+  const active = await getActiveVideoRenderExecution(ownerId, projectId);
+  if (!active) return;
+  const config = getVideoRenderingConfig();
+  if (!config.blobToken) return;
+  const progress = await getRenderProgress({
+    sandboxId: active.execution.sandboxId,
+    cmdId: active.execution.commandId,
+  });
+  if (progress.stage === "expired") {
+    await failVideoRender(
+      ownerId,
+      active.jobId,
+      new Error("Vercel Sandbox expired before the render was collected."),
+    );
+    return;
+  }
+  if (progress.stage === "error") {
+    await failVideoRender(ownerId, active.jobId, new Error(progress.message));
+    await stopSandbox(active.execution.sandboxId).catch(() => undefined);
+    return;
+  }
+  if (progress.stage !== "done") {
+    await updateVideoRenderProgress(
+      ownerId,
+      active.jobId,
+      12 + Math.round(progress.overallProgress * 82),
+    );
+    return;
+  }
+
+  let uploaded = false;
+  try {
+    await updateVideoRenderProgress(ownerId, active.jobId, 95);
+    const blob = await getBlob(progress.url, {
+      access: "private",
+      token: config.blobToken,
+      useCache: false,
+    });
+    if (!blob || blob.statusCode !== 200) {
+      throw new Error(
+        "Rendered video could not be read from temporary storage.",
+      );
+    }
+    const video = new Uint8Array(await new Response(blob.stream).arrayBuffer());
+    await storeRenderedVideoBytes(active.execution.outputAssetKey, video);
+    uploaded = true;
+    await updateVideoRenderProgress(ownerId, active.jobId, 99);
+    await completeVideoRender(ownerId, active.jobId, {
+      assetKey: active.execution.outputAssetKey,
+      mimeType: "video/mp4",
+      byteLength: progress.size,
+      durationSeconds: active.execution.durationSeconds,
+      width: active.execution.width,
+      height: active.execution.height,
+      fps: active.execution.fps,
+    });
+    await deleteBlob(progress.url, { token: config.blobToken }).catch(
+      () => undefined,
+    );
+    await stopSandbox(active.execution.sandboxId).catch(() => undefined);
+  } catch (error) {
+    await failVideoRender(ownerId, active.jobId, error).catch(() => undefined);
+    await stopSandbox(active.execution.sandboxId).catch(() => undefined);
+    if (uploaded) {
+      await deleteRenderJobAssets(active.jobId, [
+        active.execution.outputAssetKey,
+      ]).catch(() => undefined);
+    }
+  }
+}
+
 export async function startVideoRenderForOwner(
   ownerId: string,
   projectId: string,
@@ -159,6 +358,10 @@ export async function startVideoRenderForOwner(
       jobId?: string;
     }
 > {
+  // Validate hosted-render credentials before creating a durable job. This
+  // avoids leaving a job in RENDERING when deployment configuration is absent.
+  const config = getVideoRenderingConfig();
+  await reconcileVideoRenderForOwner(ownerId, projectId).catch(() => undefined);
   const result = await beginVideoRender(ownerId, projectId);
   if (!result.ok) {
     if (result.reason === "already_completed") {
@@ -173,6 +376,11 @@ export async function startVideoRenderForOwner(
     }
     return { ok: false, reason: result.reason };
   }
-  void executeVideoRender(ownerId, result.input);
+
+  if (config.provider === "local") {
+    void executeLocalVideoRender(ownerId, result.input);
+  } else {
+    await startSandboxVideoRender(ownerId, result.input);
+  }
   return { ok: true, jobId: result.input.jobId, reused: false };
 }

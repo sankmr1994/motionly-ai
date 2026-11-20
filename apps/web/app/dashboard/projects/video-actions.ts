@@ -16,7 +16,16 @@ export async function startVideoRenderAction(
 ): Promise<VideoActionState> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.emailVerified) redirect("/sign-in");
-  const result = await startVideoRenderForOwner(session.user.id, projectId);
+  const result = await startVideoRenderForOwner(
+    session.user.id,
+    projectId,
+  ).catch(() => null);
+  if (!result) {
+    return {
+      message:
+        "The video renderer is temporarily unavailable. Your approved work is safe—please try again.",
+    };
+  }
   if (!result.ok && result.reason !== "already_rendering") {
     const messages = {
       not_found: "This project could not be found.",

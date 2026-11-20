@@ -35,9 +35,9 @@ export const RemotionRoot = () => (
     height={1280}
     schema={motionlyExplainerPropsSchema}
     defaultProps={{ storyboard: solarEclipseStoryboard }}
-    calculateMetadata={({ props }) => ({
+    calculateMetadata={({ props }: { props: MotionlyExplainerProps }) => ({
       durationInFrames: props.storyboard.scenes.reduce(
-        (total, scene) =>
+        (total: number, scene) =>
           total +
           Math.max(
             1,

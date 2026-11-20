@@ -10,6 +10,9 @@ import { StudioShell } from "../../../../../components/studio-shell";
 import { VideoRenderActionButton } from "../../../../../components/video-render-action-button";
 import { VideoReviewActions } from "../../../../../components/video-review-actions";
 import { requireStudioSession } from "../../../../../lib/studio-session";
+import { reconcileVideoRenderForOwner } from "../../../../../lib/video-rendering";
+
+export const maxDuration = 300;
 
 function formatBytes(bytes: number) {
   return `${(bytes / 1_048_576).toFixed(1)} MB`;
@@ -30,6 +33,9 @@ export default async function VideoPage({
   const { session } = await requireStudioSession();
   const { projectId } = await params;
   const notices = await searchParams;
+  await reconcileVideoRenderForOwner(session.user.id, projectId).catch(
+    () => undefined,
+  );
   const [plan, job] = await Promise.all([
     getProjectPlan(session.user.id, projectId),
     getLatestVideoRenderJob(session.user.id, projectId),

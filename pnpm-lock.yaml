@@ -55,9 +55,21 @@ importers:
       "@motionly/video":
         specifier: workspace:*
         version: link:../../packages/video
+      "@remotion/bundler":
+        specifier: 4.0.541
+        version: 4.0.541(@swc/helpers@0.5.23)(lightningcss@1.33.0)(postcss@8.5.32)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sharp@0.35.5(@types/node@26.6.6))
       "@remotion/player":
         specifier: 4.0.541
         version: 4.0.541(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      "@remotion/vercel":
+        specifier: 4.0.541
+        version: 4.0.541(@vercel/sandbox@1.6.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      "@vercel/blob":
+        specifier: 2.3.0
+        version: 2.3.0
+      "@vercel/sandbox":
+        specifier: 1.6.0
+        version: 1.6.0
       better-auth:
         specifier: 1.7.18
         version: 1.7.18(mongodb@7.8.0)(next@16.4.5(@babel/core@7.29.7(supports-color@8.1.1))(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0(@types/node@26.6.6)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.1)(terser@5.51.2)(tsx@4.23.15)))
@@ -1511,6 +1523,14 @@ packages:
         integrity: sha512-Py/N0Da6HgonbtAAaaQi9Zb6/1R5j71C4KjCXDvWOQaPPyT6uBaPBiqUSY/eb5olEpAPpgV6wQkSf9vT3r81ig==,
       }
 
+  "@remotion/vercel@4.0.541":
+    resolution:
+      {
+        integrity: sha512-1nP5VjPu7zcOlWbfG44HDMMCsFTkxtgh9CBsl90kSQPexgdJKtB+Z2MkyDDM7x147foFGKyxN5v+b3toptG0xA==,
+      }
+    peerDependencies:
+      "@vercel/sandbox": ">=1.0.0"
+
   "@remotion/web-renderer@4.0.541":
     resolution:
       {
@@ -2270,6 +2290,39 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  "@vercel/blob@2.3.0":
+    resolution:
+      {
+        integrity: sha512-oYWiJbWRQ7gz9Mj0X/NHFJ3OcLMOBzq/2b3j6zeNrQmtFo6dHwU8FAwNpxVIYddVMd+g8eqEi7iRueYx8FtM0Q==,
+      }
+    engines: { node: ">=20.0.0" }
+
+  "@vercel/cli-config@0.3.1":
+    resolution:
+      {
+        integrity: sha512-sISbygqlFXYb8qfPu/+2Cf/A8IjrlAuZePdag3EDQr2PRA455s7UZtl9Ro674CWsB/saBRmz3jEkw0YsQs8OoQ==,
+      }
+
+  "@vercel/cli-exec@1.0.1":
+    resolution:
+      {
+        integrity: sha512-g9XerViJ/paZujufXYcu5XYI2vU2rtB4sgdpjUHde5RnOkdmpu0ngH46LCFGHoPXO/C+qDPSczIHIRN+8Q2YKQ==,
+      }
+    engines: { node: ">= 18" }
+
+  "@vercel/oidc@3.8.10":
+    resolution:
+      {
+        integrity: sha512-sPw1kIfQEA6/2dB+zlAJHnhhNBRJ8t/t4HfFvKO+g0EPBA7NbCKyGovuhgAV6Mnl865ka7HqCEguIy596czdAw==,
+      }
+    engines: { node: ">= 20" }
+
+  "@vercel/sandbox@1.6.0":
+    resolution:
+      {
+        integrity: sha512-T204S3RZIdo+BCR5gpErTQBYz+ruXjTMRiZyf+HV/UQeKjPKAVKWu27T65kahDvVvJrbadHhxR2Cds28rXXF/Q==,
+      }
+
   "@vitest/mocker@5.1.0":
     resolution:
       {
@@ -2451,6 +2504,34 @@ packages:
         integrity: sha512-6t10qk83GOG8p0vKmaCr8eiilZwO171AvbROMtvvNiwrTly62t+7XkA8RdIIVbpMhCASAsxgAzdRSwh6nw/5Dg==,
       }
     engines: { node: ">=4" }
+
+  async-retry@1.3.3:
+    resolution:
+      {
+        integrity: sha512-wfr/jstw9xNi/0teMHrRW7dsz3Lt5ARhYNZ2ewpadnhaIp5mbALhOAP+EAdsC7t4Z6wqsDVv9+W6gm1Dk9mEyw==,
+      }
+
+  b4a@1.9.0:
+    resolution:
+      {
+        integrity: sha512-dpfcF9fDNR6++cthXR67iyhgqWy9CBouAvIWhIntzBG6cvK/cnIPiZQjBwi/ZqjjBEDGfoNDtmB0kTjroOJ3pQ==,
+      }
+    peerDependencies:
+      react-native-b4a: "*"
+    peerDependenciesMeta:
+      react-native-b4a:
+        optional: true
+
+  bare-events@2.9.2:
+    resolution:
+      {
+        integrity: sha512-AIPKioV7/Y/8KfZ3AAhjPJxLLbY49S64Ym5DakZlUg75qQiTgUq9hEJoEwa4eUezPUlXRy/i5NpsKvo9jgKmoA==,
+      }
+    peerDependencies:
+      bare-abort-controller: "*"
+    peerDependenciesMeta:
+      bare-abort-controller:
+        optional: true
 
   base64-js@1.5.1:
     resolution:
@@ -2809,6 +2890,12 @@ packages:
         integrity: sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g==,
       }
 
+  events-universal@1.0.1:
+    resolution:
+      {
+        integrity: sha512-LUd5euvbMLpwOF8m6ivPCbhQeSiYVNb8Vs0fQ8QjXo0JTkEHpz8pxdQf0gStltaPpw0Cca8b39KxvK9cfKRiAw==,
+      }
+
   events@3.3.0:
     resolution:
       {
@@ -2840,6 +2927,12 @@ packages:
     resolution:
       {
         integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==,
+      }
+
+  fast-fifo@1.3.2:
+    resolution:
+      {
+        integrity: sha512-/d9sfos4yxzpwkDkuN7k2SqFKtYNmCTzgfEpz82x34IM9/zc8KGxQoXg1liNC/izpRM/MBdt44Nmx41ZWqk+FQ==,
       }
 
   fast-sha256@1.3.0:
@@ -2985,6 +3078,13 @@ packages:
         integrity: sha512-zz06S8t0ozoDXMG+ube26zeCTNXcKIPJZJi8hBrF4idCLms4CG9QtK7qBl1boi5ODzFpjswb5JPmHCbMpjaYzg==,
       }
 
+  is-buffer@2.0.5:
+    resolution:
+      {
+        integrity: sha512-i2R6zNFDwgEHJyQUtJEk0XFi1i0dPFn/oqjK3/vPCcDeJvW5NQ83V8QbicfF1SupOaB0h8ntgBC2YiE7dfyctQ==,
+      }
+    engines: { node: ">=4" }
+
   is-docker@2.2.1:
     resolution:
       {
@@ -2992,6 +3092,12 @@ packages:
       }
     engines: { node: ">=8" }
     hasBin: true
+
+  is-node-process@1.2.0:
+    resolution:
+      {
+        integrity: sha512-Vg4o6/fqPxIjtxgUH5QLJhwZ7gW5diGCVlXpuUfELC62CuxM1iHcRe51f2W1FDy04Ai4KJkagKjx3XaqyfRKXw==,
+      }
 
   is-stream@2.0.1:
     resolution:
@@ -3019,6 +3125,12 @@ packages:
         integrity: sha512-7vuh85V5cdDofPyxn58nrPjBktZo0u9x1g8WtjQol+jZDaE+fhN+cIvTj11GndBnMnyfrUOG1sZQxCdjKh+DKg==,
       }
     engines: { node: ">= 10.13.0" }
+
+  jose@5.10.0:
+    resolution:
+      {
+        integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==,
+      }
 
   jose@6.2.16:
     resolution:
@@ -3072,6 +3184,12 @@ packages:
       }
     engines: { node: ">=6" }
     hasBin: true
+
+  jsonlines@0.1.1:
+    resolution:
+      {
+        integrity: sha512-ekDrAGso79Cvf+dtm+mL8OBI2bmAOt3gssYs833De/C9NmIpWDWyUO4zPgB5x2/OhY366dkhgfPMYfwZF7yOZA==,
+      }
 
   jwa@2.0.1:
     resolution:
@@ -3494,6 +3612,13 @@ packages:
       }
     engines: { node: ">=12" }
 
+  os-paths@4.4.0:
+    resolution:
+      {
+        integrity: sha512-wrAwOeXp1RRMFfQY8Sy7VaGVmPocaLwSFOYCGKSyo8qmJ+/yaafCl5BCA1IQZWqFSRBrKDYFeR9d/VyQzfH/jg==,
+      }
+    engines: { node: ">= 6.0" }
+
   p-retry@4.6.2:
     resolution:
       {
@@ -3875,6 +4000,12 @@ packages:
         integrity: sha512-OtU/EgQ1kIm5KwqQpBC6ZEMXrZRui11w8zgfTWp8cdO9B8OaPsbA8bTHO2P+HNo1VlUTGMVBwPhydu6poeXiag==,
       }
 
+  streamx@2.28.1:
+    resolution:
+      {
+        integrity: sha512-zEzXb0s5Cds7tqMH6rhZ05lcJydCWiQPEwiNngVqzsxCc962vLY4Uw+mW7od8kDH258k2Uz/JrOkdIAAhSh9VA==,
+      }
+
   strip-final-newline@2.0.0:
     resolution:
       {
@@ -3934,6 +4065,12 @@ packages:
       }
     engines: { node: ">=6" }
 
+  tar-stream@3.1.7:
+    resolution:
+      {
+        integrity: sha512-qJj60CXt7IU1Ffyc3NJMjh6EkuCFej46zUqJ4J7pqYlThyd9bO0XBTmcOIhSzZJVWfsLks0+nle/j538YAW9RQ==,
+      }
+
   terser@5.51.2:
     resolution:
       {
@@ -3941,6 +4078,19 @@ packages:
       }
     engines: { node: ">=10" }
     hasBin: true
+
+  text-decoder@1.2.7:
+    resolution:
+      {
+        integrity: sha512-vlLytXkeP4xvEq2otHeJfSQIRyWxo/oZGEbXrtEEF9Hnmrdly59sUbzZ/QgyWuLYHctCHxFF4tRQZNQ9k60ExQ==,
+      }
+
+  throttleit@2.1.0:
+    resolution:
+      {
+        integrity: sha512-nt6AMGKW1p/70DF/hGBdJB57B8Tspmbp5gfJ8ilhLnt7kkr2ye7hzD6NVG8GGErk2HWF34igrL2CXmNIkzKqKw==,
+      }
+    engines: { node: ">=18" }
 
   tiny-invariant@1.3.3:
     resolution:
@@ -4016,6 +4166,20 @@ packages:
       {
         integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==,
       }
+
+  undici@6.29.1:
+    resolution:
+      {
+        integrity: sha512-EvRlUt/QqAEvXdQeRMYUfwOQsfzpDztykrG2owGEE/rBOBoYv9uF39ZzsNDh4lTFHhTr2XOZjKkYgueD12ZmGA==,
+      }
+    engines: { node: ">=18.17" }
+
+  undici@7.30.2:
+    resolution:
+      {
+        integrity: sha512-mLyPQnHwUxaM/rideoK/+KL8DaAJLRl4aBCfmX444aCSLnIaomqPLtNRe2jdCYcsk5wZzXrDIQC8ZeYNRAYyIA==,
+      }
+    engines: { node: ">=20.18.1" }
 
   update-browserslist-db@1.3.4:
     resolution:
@@ -4230,6 +4394,20 @@ packages:
       utf-8-validate:
         optional: true
 
+  xdg-app-paths@5.1.0:
+    resolution:
+      {
+        integrity: sha512-RAQ3WkPf4KTU1A8RtFx3gWywzVKe00tfOPFfl2NDGqbIFENQO4kqAJp7mhQjNj/33W5x5hiWWUdyfPq/5SU3QA==,
+      }
+    engines: { node: ">=6" }
+
+  xdg-portable@7.3.0:
+    resolution:
+      {
+        integrity: sha512-sqMMuL1rc0FmMBOzCpd0yuy9trqF2yTTVe+E9ogwCSWQCdDEtQUwrZPT6AxqtsFGRNxycgncbP/xmOOSPw5ZUw==,
+      }
+    engines: { node: ">= 6.0" }
+
   yallist@3.1.1:
     resolution:
       {
@@ -4240,6 +4418,18 @@ packages:
     resolution:
       {
         integrity: sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A==,
+      }
+
+  zod@3.24.4:
+    resolution:
+      {
+        integrity: sha512-OdqJE9UDRPwWsrHjLN2F8bPxvwJBK22EHLWtanu0LSYr5YqzsaaW3RMgmjwr8Rypg5k+meEJdSPXJZXE/yqOMg==,
+      }
+
+  zod@4.1.11:
+    resolution:
+      {
+        integrity: sha512-WPsqwxITS2tzx1bzhIKsEs19ABD5vmCVa4xBo2tq/SrV4RNZtfws1EnCWQXM6yh8bD08a1idvkB5MZSBiZsjwg==,
       }
 
   zod@4.6.7:
@@ -5178,6 +5368,17 @@ snapshots:
       - react
       - react-dom
 
+  "@remotion/vercel@4.0.541(@vercel/sandbox@1.6.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)":
+    dependencies:
+      "@remotion/renderer": 4.0.541(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      "@vercel/sandbox": 1.6.0
+      remotion: 4.0.541(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+    transitivePeerDependencies:
+      - bufferutil
+      - react
+      - react-dom
+      - utf-8-validate
+
   "@remotion/web-renderer@4.0.541(react-dom@19.3.1(react@19.3.1))(react@19.3.1)":
     dependencies:
       "@mediabunny/aac-encoder": 1.64.0(mediabunny@1.64.0)
@@ -5543,6 +5744,44 @@ snapshots:
   "@typescript/typescript-win32-x64@7.0.2":
     optional: true
 
+  "@vercel/blob@2.3.0":
+    dependencies:
+      async-retry: 1.3.3
+      is-buffer: 2.0.5
+      is-node-process: 1.2.0
+      throttleit: 2.1.0
+      undici: 6.29.1
+
+  "@vercel/cli-config@0.3.1":
+    dependencies:
+      xdg-app-paths: 5.1.0
+      zod: 4.1.11
+
+  "@vercel/cli-exec@1.0.1":
+    dependencies:
+      execa: 5.1.1
+
+  "@vercel/oidc@3.8.10":
+    dependencies:
+      "@vercel/cli-config": 0.3.1
+      "@vercel/cli-exec": 1.0.1
+      jose: 5.10.0
+
+  "@vercel/sandbox@1.6.0":
+    dependencies:
+      "@vercel/oidc": 3.8.10
+      async-retry: 1.3.3
+      jsonlines: 0.1.1
+      ms: 2.1.3
+      picocolors: 1.1.1
+      tar-stream: 3.1.7
+      undici: 7.30.2
+      xdg-app-paths: 5.1.0
+      zod: 3.24.4
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - react-native-b4a
+
   "@vitest/mocker@5.1.0(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.1)(terser@5.51.2)(tsx@4.23.15))":
     dependencies:
       "@jridgewell/trace-mapping": 0.3.31
@@ -5661,6 +5900,14 @@ snapshots:
   ast-types@0.16.1:
     dependencies:
       tslib: 2.9.1
+
+  async-retry@1.3.3:
+    dependencies:
+      retry: 0.13.1
+
+  b4a@1.9.0: {}
+
+  bare-events@2.9.2: {}
 
   base64-js@1.5.1: {}
 
@@ -5851,6 +6098,12 @@ snapshots:
     dependencies:
       "@types/estree": 1.0.10
 
+  events-universal@1.0.1:
+    dependencies:
+      bare-events: 2.9.2
+    transitivePeerDependencies:
+      - bare-abort-controller
+
   events@3.3.0: {}
 
   execa@5.1.1:
@@ -5870,6 +6123,8 @@ snapshots:
   extend@3.0.2: {}
 
   fast-deep-equal@3.1.3: {}
+
+  fast-fifo@1.3.2: {}
 
   fast-sha256@1.3.0: {}
 
@@ -5950,7 +6205,11 @@ snapshots:
 
   is-arrayish@0.2.1: {}
 
+  is-buffer@2.0.5: {}
+
   is-docker@2.2.1: {}
+
+  is-node-process@1.2.0: {}
 
   is-stream@2.0.1: {}
 
@@ -5965,6 +6224,8 @@ snapshots:
       "@types/node": 26.6.6
       merge-stream: 2.0.0
       supports-color: 8.1.1
+
+  jose@5.10.0: {}
 
   jose@6.2.16: {}
 
@@ -5985,6 +6246,8 @@ snapshots:
   json-schema-traverse@1.0.0: {}
 
   json5@2.2.3: {}
+
+  jsonlines@0.1.1: {}
 
   jwa@2.0.1:
     dependencies:
@@ -6175,6 +6438,8 @@ snapshots:
       define-lazy-prop: 2.0.0
       is-docker: 2.2.1
       is-wsl: 2.2.0
+
+  os-paths@4.4.0: {}
 
   p-retry@4.6.2:
     dependencies:
@@ -6413,6 +6678,15 @@ snapshots:
 
   std-env@4.3.0: {}
 
+  streamx@2.28.1:
+    dependencies:
+      events-universal: 1.0.1
+      fast-fifo: 1.3.2
+      text-decoder: 1.2.7
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - react-native-b4a
+
   strip-final-newline@2.0.0: {}
 
   style-loader@4.0.0(webpack@5.112.2(esbuild@0.28.1)(lightningcss@1.33.0)(postcss@8.5.32)(sharp@0.35.5(@types/node@26.6.6))):
@@ -6443,12 +6717,29 @@ snapshots:
 
   tapable@2.3.3: {}
 
+  tar-stream@3.1.7:
+    dependencies:
+      b4a: 1.9.0
+      fast-fifo: 1.3.2
+      streamx: 2.28.1
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - react-native-b4a
+
   terser@5.51.2:
     dependencies:
       "@jridgewell/source-map": 0.3.11
       acorn: 8.19.0
       commander: 2.20.3
       source-map-support: 0.5.21
+
+  text-decoder@1.2.7:
+    dependencies:
+      b4a: 1.9.0
+    transitivePeerDependencies:
+      - react-native-b4a
+
+  throttleit@2.1.0: {}
 
   tiny-invariant@1.3.3: {}
 
@@ -6501,6 +6792,10 @@ snapshots:
   undici-types@6.21.0: {}
 
   undici-types@8.9.0: {}
+
+  undici@6.29.1: {}
+
+  undici@7.30.2: {}
 
   update-browserslist-db@1.3.4(browserslist@4.29.5):
     dependencies:
@@ -6614,8 +6909,20 @@ snapshots:
 
   ws@8.22.1: {}
 
+  xdg-app-paths@5.1.0:
+    dependencies:
+      xdg-portable: 7.3.0
+
+  xdg-portable@7.3.0:
+    dependencies:
+      os-paths: 4.4.0
+
   yallist@3.1.1: {}
 
   yallist@4.0.0: {}
+
+  zod@3.24.4: {}
+
+  zod@4.1.11: {}
 
   zod@4.6.7: {}

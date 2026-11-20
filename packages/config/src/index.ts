@@ -49,6 +49,9 @@ export const serverEnvironmentSchema = z
     R2_ENDPOINT: optionalSecret,
     R2_ACCESS_KEY_ID: optionalSecret,
     R2_SECRET_ACCESS_KEY: optionalSecret,
+    VIDEO_RENDER_PROVIDER: z.enum(["local", "vercel-sandbox"]).optional(),
+    BLOB_READ_WRITE_TOKEN: optionalSecret,
+    REMOTION_LICENSE_KEY: optionalSecret,
   })
   .superRefine((environment, context) => {
     const keys = [
@@ -228,6 +231,42 @@ export function getR2Config(): {
     bucketName: environment.R2_BUCKET_NAME,
     accessKeyId: environment.R2_ACCESS_KEY_ID,
     secretAccessKey: environment.R2_SECRET_ACCESS_KEY,
+  };
+}
+
+export function resolveVideoRenderProvider(environment: {
+  APP_ENV: ServerEnvironment["APP_ENV"];
+  VIDEO_RENDER_PROVIDER?: ServerEnvironment["VIDEO_RENDER_PROVIDER"];
+}) {
+  if (
+    environment.APP_ENV === "preview" ||
+    environment.APP_ENV === "production"
+  ) {
+    return "vercel-sandbox" as const;
+  }
+  return environment.VIDEO_RENDER_PROVIDER ?? ("local" as const);
+}
+
+export function getVideoRenderingConfig(): {
+  provider: "local" | "vercel-sandbox";
+  blobToken?: string;
+  remotionLicenseKey?: string;
+} {
+  const environment = getServerEnv();
+  const provider = resolveVideoRenderProvider(environment);
+  if (provider === "vercel-sandbox" && !environment.BLOB_READ_WRITE_TOKEN) {
+    throw new Error(
+      "Vercel Sandbox rendering requires a private Blob store and BLOB_READ_WRITE_TOKEN.",
+    );
+  }
+  return {
+    provider,
+    ...(environment.BLOB_READ_WRITE_TOKEN
+      ? { blobToken: environment.BLOB_READ_WRITE_TOKEN }
+      : {}),
+    ...(environment.REMOTION_LICENSE_KEY
+      ? { remotionLicenseKey: environment.REMOTION_LICENSE_KEY }
+      : {}),
   };
 }
 

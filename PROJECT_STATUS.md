@@ -2,9 +2,9 @@
 
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
-Last updated: **2026-11-19**
-Current implementation phase: **Deployment Phase 2 — Vercel-ready monorepo configuration complete**
-Next planned phase: **Deployment Phase 3 — Migrate production rendering to Vercel Sandbox**
+Last updated: **2026-11-20**
+Current implementation phase: **Deployment Phase 3 — Vercel Sandbox rendering complete**
+Next planned phase: **Deployment Phase 4 — Create and verify the first Vercel Preview deployment**
 
 ## 1. Product summary
 
@@ -216,6 +216,16 @@ Vercel deployment Phase 2 completed on **2026-11-19**:
 - Vercel-root verification passed: `pnpm --dir apps/web install --frozen-lockfile --offline` detected all eight workspace projects, formatting passed, all workspace type checks passed, all **71** automated tests passed, and `pnpm --dir apps/web build` completed successfully with all expected routes.
 - No Vercel project, deployment, domain, paid resource, or external environment setting was created in this phase. Production rendering still uses the local child-process development adapter and must be replaced before the first preview deployment is approved.
 
+Vercel deployment Phase 3 completed on **2026-11-20**:
+
+- Preserved the existing local child-process Remotion adapter for local/test environments and enforced detached Vercel Sandbox selection for Preview/Production. A local environment may explicitly select Sandbox for controlled diagnostics, but a hosted environment can never select the child-process adapter.
+- Added durable Sandbox execution metadata to MongoDB render jobs. The existing three-second page refresh now reconciles genuine Sandbox progress, persists monotonic percentages, resumes safely after navigation, and prevents duplicate active renders.
+- Added a private temporary Vercel Blob handoff because detached Remotion Sandbox rendering requires Blob output. Completed MP4s are copied into the existing readable owner/project/revision key in private Cloudflare R2; the temporary Blob is deleted and the Sandbox is stopped after successful finalization.
+- Added retry handling for failed/expired Sandbox sessions, idempotent completion for concurrent status polls, a 50-minute durable-job stale boundary, and safe cleanup of partial R2 output. Approved storyboard, narration, and captions remain unchanged on failure.
+- Added Hobby safeguards: 720 × 1280 H.264 output, two-vCPU Sandboxes, render concurrency two, a 40-minute detached timeout, a five-minute Server Action ceiling, and no automatic 1080p path.
+- Added hosted render configuration for `VIDEO_RENDER_PROVIDER`, private `BLOB_READ_WRITE_TOKEN`, and `REMOTION_LICENSE_KEY`; no real credentials were committed. The Vercel deployment guide now records the exact lifecycle and environment requirements.
+- Automated verification passed: repository formatting, all workspace type checks, all **74** automated tests, and the optimized Next.js production build. A live Sandbox render remains intentionally deferred until the first Vercel Preview project has OIDC, Blob, R2, and application environment values.
+
 ## 5. Existing validated video POCs
 
 The repository already proves the deterministic rendering approach with three narrated vertical videos:
@@ -290,7 +300,7 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 ## 9. Open decisions and known gaps
 
 - MongoDB Atlas is configured and connectivity-tested locally; production deployment configuration remains deferred.
-- Vercel repository configuration is complete, but no Vercel project, preview deployment, or custom domain exists yet. Production deployment remains blocked until the Sandbox renderer replaces the local child-process adapter.
+- Vercel repository and Sandbox rendering configuration are complete, but no Vercel project, preview deployment, private Blob store, or custom domain exists yet. A live hosted render therefore remains unverified.
 - Remotion licensing must be confirmed before commercial production launch.
 - The production Gemini model remains environment-configurable. Live account verification currently supports and uses `gemini-3.5-flash-lite`; `gemini-2.5-flash-lite` is listed by the API but rejects new users and must not be selected.
 - Better Auth, project repositories, durable narration/render jobs, caption review snapshots, and private R2 media persistence are wired. Inngest execution and Sentry remain deferred to their planned production-hardening slices. Direct short-lived R2 URLs remain a later performance optimization; current authenticated routes preserve owner checks and private downloads.
@@ -299,7 +309,7 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 
 ## 10. Exact next action
 
-Implement Deployment Phase 3: preserve the current local Remotion adapter for development, add detached Vercel Sandbox rendering for Preview/Production, persist real render progress and retries, upload the completed MP4 to private Cloudflare R2, and stop every Sandbox promptly. Verify this path automatically before creating the first Vercel preview deployment.
+Implement Deployment Phase 4: import `sankmr1994/motionly-ai` into Vercel with `apps/web` as the Root Directory, configure Preview environment values and a private Blob store, deploy `develop`, verify health/auth/R2 behavior, and run one owner-scoped 720p Sandbox render end to end before any Production promotion.
 
 ## 11. Update protocol for future developers and agents
 

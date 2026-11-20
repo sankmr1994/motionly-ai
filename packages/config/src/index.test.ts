@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getAdminEmails, parseServerEnv } from "./index";
+import {
+  getAdminEmails,
+  parseServerEnv,
+  resolveVideoRenderProvider,
+} from "./index";
 
 describe("server environment", () => {
   it("uses safe local defaults", () => {
@@ -37,6 +41,31 @@ describe("server environment", () => {
 
     expect(environment.APP_ENV).toBe("production");
     expect(environment.APP_URL).toBe("https://motionly.example");
+  });
+
+  it("selects Vercel Sandbox for hosted environments", () => {
+    expect(resolveVideoRenderProvider({ APP_ENV: "preview" })).toBe(
+      "vercel-sandbox",
+    );
+    expect(resolveVideoRenderProvider({ APP_ENV: "local" })).toBe("local");
+  });
+
+  it("never starts the local child renderer in a hosted environment", () => {
+    expect(
+      resolveVideoRenderProvider({
+        APP_ENV: "production",
+        VIDEO_RENDER_PROVIDER: "local",
+      }),
+    ).toBe("vercel-sandbox");
+  });
+
+  it("allows Sandbox verification from a local environment", () => {
+    expect(
+      resolveVideoRenderProvider({
+        APP_ENV: "local",
+        VIDEO_RENDER_PROVIDER: "vercel-sandbox",
+      }),
+    ).toBe("vercel-sandbox");
   });
 
   it("requires all R2 settings together", () => {

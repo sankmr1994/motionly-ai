@@ -6,6 +6,8 @@ import { StudioShell } from "../../../../../components/studio-shell";
 import { VideoRenderActionButton } from "../../../../../components/video-render-action-button";
 import { requireStudioSession } from "../../../../../lib/studio-session";
 
+export const maxDuration = 300;
+
 export default async function CaptionsPage({
   params,
   searchParams,

@@ -63,6 +63,18 @@ type RenderJobDocument = {
   status: RenderJobStatus;
   progress: number;
   attempt: number;
+  execution?: {
+    provider: "VERCEL_SANDBOX";
+    sandboxId: string;
+    commandId: string;
+    blobPath: string;
+    outputAssetKey: string;
+    durationSeconds: number;
+    width: 720;
+    height: 1280;
+    fps: 30;
+    startedAt: Date;
+  };
   output?: {
     assetKey: string;
     mimeType: "video/mp4";
@@ -123,6 +135,22 @@ export type VideoRenderJobView = {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
+};
+
+export type ActiveVideoRenderExecution = {
+  jobId: string;
+  projectId: string;
+  execution: {
+    provider: "VERCEL_SANDBOX";
+    sandboxId: string;
+    commandId: string;
+    blobPath: string;
+    outputAssetKey: string;
+    durationSeconds: number;
+    width: 720;
+    height: 1280;
+    fps: 30;
+  };
 };
 
 export type VideoLibraryRenderState = {
@@ -289,7 +317,10 @@ export async function beginVideoRender(
         return;
       }
       if (latest?.status === "RENDERING") {
-        const staleBefore = Date.now() - 15 * 60 * 1_000;
+        // Sandbox sessions may legitimately run for most of the Hobby plan's
+        // 45-minute limit. Do not replace a detached render while it can still
+        // finish and be reconciled.
+        const staleBefore = Date.now() - 50 * 60 * 1_000;
         if (latest.updatedAt.getTime() > staleBefore) {
           outcome = {
             ok: false,
@@ -384,11 +415,76 @@ export async function updateVideoRenderProgress(
       { _id: id, ownerId, status: "RENDERING" },
       {
         $set: {
-          progress: Math.max(5, Math.min(99, Math.round(progress))),
           updatedAt: new Date(),
+        },
+        $max: {
+          progress: Math.max(5, Math.min(99, Math.round(progress))),
         },
       },
     );
+}
+
+export async function attachVideoRenderExecution(
+  ownerId: string,
+  jobId: string,
+  execution: ActiveVideoRenderExecution["execution"],
+) {
+  const id = toObjectId(jobId);
+  if (!id) throw new Error("Render job was not found.");
+  const result = await (
+    await getDatabase()
+  )
+    .collection<RenderJobDocument>("renderJobs")
+    .updateOne(
+      { _id: id, ownerId, status: "RENDERING", execution: { $exists: false } },
+      {
+        $set: {
+          execution: { ...execution, startedAt: new Date() },
+          updatedAt: new Date(),
+        },
+        $max: { progress: 12 },
+      },
+    );
+  if (!result.modifiedCount) {
+    throw new Error("Render execution could not be attached.");
+  }
+}
+
+export async function getActiveVideoRenderExecution(
+  ownerId: string,
+  projectId: string,
+): Promise<ActiveVideoRenderExecution | null> {
+  const projectObjectId = toObjectId(projectId);
+  if (!projectObjectId) return null;
+  const job = await (
+    await getDatabase()
+  )
+    .collection<RenderJobDocument>("renderJobs")
+    .findOne(
+      {
+        ownerId,
+        projectId: projectObjectId,
+        status: "RENDERING",
+        execution: { $exists: true },
+      },
+      { sort: { createdAt: -1 } },
+    );
+  if (!job?.execution) return null;
+  return {
+    jobId: job._id.toHexString(),
+    projectId: job.projectId.toHexString(),
+    execution: {
+      provider: job.execution.provider,
+      sandboxId: job.execution.sandboxId,
+      commandId: job.execution.commandId,
+      blobPath: job.execution.blobPath,
+      outputAssetKey: job.execution.outputAssetKey,
+      durationSeconds: job.execution.durationSeconds,
+      width: job.execution.width,
+      height: job.execution.height,
+      fps: job.execution.fps,
+    },
+  };
 }
 
 export async function completeVideoRender(
@@ -415,7 +511,19 @@ export async function completeVideoRender(
         },
       },
     );
-  if (!result.modifiedCount) throw new Error("Render could not be completed.");
+  if (!result.modifiedCount) {
+    const existing = await (
+      await getDatabase()
+    )
+      .collection<RenderJobDocument>("renderJobs")
+      .findOne({
+        _id: id,
+        ownerId,
+        status: "COMPLETED",
+        "output.assetKey": output.assetKey,
+      });
+    if (!existing) throw new Error("Render could not be completed.");
+  }
 }
 
 export async function failVideoRender(
