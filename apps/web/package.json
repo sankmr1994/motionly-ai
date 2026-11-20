@@ -12,6 +12,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1169.0",
     "@better-auth/mongo-adapter": "1.7.18",
+    "@jridgewell/resolve-uri": "3.1.2",
+    "@jridgewell/sourcemap-codec": "1.6.0",
     "@jridgewell/trace-mapping": "0.3.31",
     "@motionly/ai": "workspace:*",
     "@motionly/config": "workspace:*",
