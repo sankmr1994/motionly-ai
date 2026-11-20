@@ -3,8 +3,8 @@
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
 Last updated: **2026-11-19**
-Current implementation phase: **Phase 7A — Instagram account-connection foundation verified locally**
-Next planned phase: **Prepare Vercel Hobby deployment and migrate rendering to Vercel Sandbox**
+Current implementation phase: **Deployment Phase 2 — Vercel-ready monorepo configuration complete**
+Next planned phase: **Deployment Phase 3 — Migrate production rendering to Vercel Sandbox**
 
 ## 1. Product summary
 
@@ -207,6 +207,15 @@ Phase 7A Instagram account-connection foundation implemented on **2026-11-19**:
 - Automated verification passed: all workspace type checks, all **69** tests, and the optimized Next.js production build. Manual signed-in browser testing was intentionally left to the product owner.
 - Phase 1 stabilization is complete on the `develop` branch: the full Instagram foundation was reviewed, formatting passed, all workspace type checks passed, all **69** automated tests passed, and the optimized Next.js build exposed both OAuth routes and the Settings page successfully. No Meta credentials were added and migration `006` remains intentionally unapplied until the deployed HTTPS environment is configured.
 
+Vercel deployment Phase 2 completed on **2026-11-19**:
+
+- Added an app-scoped `apps/web/vercel.json` for the Next.js framework, frozen pnpm installation, standard app build/dev commands, and Fluid compute. The required Vercel project Root Directory is `apps/web`; no output-directory override is used.
+- Added safe Vercel environment inference: Preview derives its stable branch origin and `APP_ENV=preview` from system variables, Production derives a fallback origin, and an explicit final `APP_URL` always wins. This keeps the future custom domain authoritative for Better Auth and external links.
+- Added `docs/VERCEL_DEPLOYMENT.md` with exact import settings, Preview/Production variable separation, sensitive-value guidance, deployment gates, and post-deployment checks. Preview and Production use different Better Auth secrets and MongoDB database names; Meta credentials remain deferred until the final HTTPS callback exists.
+- Added `.vercel/` to Git exclusions and confirmed that no deployment state or credentials are tracked.
+- Vercel-root verification passed: `pnpm --dir apps/web install --frozen-lockfile --offline` detected all eight workspace projects, formatting passed, all workspace type checks passed, all **71** automated tests passed, and `pnpm --dir apps/web build` completed successfully with all expected routes.
+- No Vercel project, deployment, domain, paid resource, or external environment setting was created in this phase. Production rendering still uses the local child-process development adapter and must be replaced before the first preview deployment is approved.
+
 ## 5. Existing validated video POCs
 
 The repository already proves the deterministic rendering approach with three narrated vertical videos:
@@ -227,7 +236,7 @@ POC and legacy generated media under `out/` and `storage/` remains local and unc
 - Metadata: MongoDB Atlas through the official driver and repository interfaces
 - Durable workflows: Inngest (Phase 5)
 - Media storage: private Cloudflare R2 through authenticated owner-scoped application routes; legacy local assets remain readable during transition
-- Rendering: Remotion worker; Remotion Lambda is a later measured scaling option
+- Rendering: local Remotion adapter during development; Vercel Sandbox is the approved Hobby deployment target; Remotion Lambda remains a later measured scaling option
 - AI planning: Gemini with configurable model identifier
 - Voice: ElevenLabs; configured local voice is **Motionly Indian Educator**
 - Monitoring: structured logs now; Sentry integration later
@@ -281,6 +290,7 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 ## 9. Open decisions and known gaps
 
 - MongoDB Atlas is configured and connectivity-tested locally; production deployment configuration remains deferred.
+- Vercel repository configuration is complete, but no Vercel project, preview deployment, or custom domain exists yet. Production deployment remains blocked until the Sandbox renderer replaces the local child-process adapter.
 - Remotion licensing must be confirmed before commercial production launch.
 - The production Gemini model remains environment-configurable. Live account verification currently supports and uses `gemini-3.5-flash-lite`; `gemini-2.5-flash-lite` is listed by the API but rejects new users and must not be selected.
 - Better Auth, project repositories, durable narration/render jobs, caption review snapshots, and private R2 media persistence are wired. Inngest execution and Sentry remain deferred to their planned production-hardening slices. Direct short-lived R2 URLs remain a later performance optimization; current authenticated routes preserve owner checks and private downloads.
@@ -289,7 +299,7 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 
 ## 10. Exact next action
 
-Prepare the monorepo for Vercel Hobby, deploy the web application to a temporary `vercel.app` preview, and replace production use of the local child-process renderer with detached Vercel Sandbox rendering that uploads completed MP4 files to private Cloudflare R2. After the final domain is connected, register its exact `/api/v1/integrations/instagram/oauth/callback` URL in Meta, apply migration `006`, and verify one owner-scoped test-account connection.
+Implement Deployment Phase 3: preserve the current local Remotion adapter for development, add detached Vercel Sandbox rendering for Preview/Production, persist real render progress and retries, upload the completed MP4 to private Cloudflare R2, and stop every Sandbox promptly. Verify this path automatically before creating the first Vercel preview deployment.
 
 ## 11. Update protocol for future developers and agents
 

@@ -16,6 +16,29 @@ describe("server environment", () => {
     );
   });
 
+  it("derives a stable preview origin from Vercel system variables", () => {
+    const environment = parseServerEnv({
+      VERCEL_ENV: "preview",
+      VERCEL_URL: "motionly-commit.vercel.app",
+      VERCEL_BRANCH_URL: "motionly-git-develop.vercel.app",
+    });
+
+    expect(environment.APP_ENV).toBe("preview");
+    expect(environment.APP_URL).toBe("https://motionly-git-develop.vercel.app");
+  });
+
+  it("keeps an explicit production origin authoritative", () => {
+    const environment = parseServerEnv({
+      VERCEL_ENV: "production",
+      VERCEL_PROJECT_PRODUCTION_URL: "motionly-ai.vercel.app",
+      APP_ENV: "production",
+      APP_URL: "https://motionly.example",
+    });
+
+    expect(environment.APP_ENV).toBe("production");
+    expect(environment.APP_URL).toBe("https://motionly.example");
+  });
+
   it("requires all R2 settings together", () => {
     expect(() =>
       parseServerEnv({

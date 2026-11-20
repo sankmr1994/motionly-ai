@@ -9,9 +9,11 @@ Videos are rendered from validated storyboard JSON and predefined React/SVG anim
 - The creator workflow from account creation through approved MP4 download is implemented.
 - Narration and completed videos are persisted privately in Cloudflare R2; MongoDB stores their owner-scoped metadata.
 - Solar-eclipse, compound-interest, and binary-search video POCs are complete.
-- The next milestone is the Phase 7 manual Instagram publishing foundation.
+- The Instagram account-connection foundation is implemented and locally verified.
+- Vercel monorepo deployment preparation is complete; the next milestone is Vercel Sandbox rendering.
 
 Read [PROJECT_STATUS.md](./PROJECT_STATUS.md) for the authoritative implementation state and exact next action.
+See [docs/VERCEL_DEPLOYMENT.md](./docs/VERCEL_DEPLOYMENT.md) for the approved Vercel Hobby project settings and environment separation checklist.
 
 ## Requirements
 

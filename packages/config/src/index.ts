@@ -144,7 +144,30 @@ let cachedEnvironment: ServerEnvironment | undefined;
 export function parseServerEnv(
   source: Record<string, string | undefined>,
 ): ServerEnvironment {
-  const result = serverEnvironmentSchema.safeParse(source);
+  const normalizedSource = { ...source };
+  const vercelEnvironment = source.VERCEL_ENV?.trim();
+
+  if (!normalizedSource.APP_ENV) {
+    if (vercelEnvironment === "production") {
+      normalizedSource.APP_ENV = "production";
+    } else if (vercelEnvironment === "preview") {
+      normalizedSource.APP_ENV = "preview";
+    } else if (vercelEnvironment === "development") {
+      normalizedSource.APP_ENV = "local";
+    }
+  }
+
+  if (!normalizedSource.APP_URL && vercelEnvironment) {
+    const deploymentHost =
+      vercelEnvironment === "production"
+        ? (source.VERCEL_PROJECT_PRODUCTION_URL ?? source.VERCEL_URL)
+        : (source.VERCEL_BRANCH_URL ?? source.VERCEL_URL);
+    if (deploymentHost?.trim()) {
+      normalizedSource.APP_URL = `https://${deploymentHost.trim()}`;
+    }
+  }
+
+  const result = serverEnvironmentSchema.safeParse(normalizedSource);
 
   if (!result.success) {
     const details = result.error.issues
