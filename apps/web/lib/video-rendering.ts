@@ -364,6 +364,14 @@ export async function reconcileVideoRenderForOwner(
     return;
   }
   if (progress.stage === "error") {
+    logger.error("video_render_execution_failed", {
+      projectId,
+      jobId: active.jobId,
+      provider: active.execution.provider,
+      sandboxId: active.execution.sandboxId,
+      commandId: active.execution.commandId,
+      errorMessage: progress.message.slice(0, 2_000),
+    });
     await failVideoRender(ownerId, active.jobId, new Error(progress.message));
     await stopSandbox(active.execution.sandboxId).catch(() => undefined);
     return;
