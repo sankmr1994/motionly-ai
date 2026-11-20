@@ -351,3 +351,85 @@ Return exactly six suggestions as JSON.`,
     model: selectedModel,
   };
 }
+
+export async function generatePersonalizedEvergreenTopicSuggestions(input: {
+  category: string;
+  language: string;
+}): Promise<TrendingTopicResult> {
+  const { apiKey, model, fallbackModel } = getGeminiConfig();
+  const client = createGeminiClient(apiKey);
+  let response:
+    Awaited<ReturnType<typeof client.models.generateContent>> | undefined;
+  let selectedModel = model;
+  const candidateModels = [...new Set([model, fallbackModel])];
+
+  for (const [index, candidateModel] of candidateModels.entries()) {
+    try {
+      response = await client.models.generateContent({
+        model: candidateModel,
+        contents: `Create six useful evergreen topics for short educational Instagram Reels.
+Personalize them for the content category "${input.category}" and the language "${input.language}". Prefer broadly useful examples for an Indian audience when appropriate.
+Each "idea" must be a ready-to-use, beginner-friendly instruction describing exactly what the video should explain. Each "whyNow" must explain the topic's lasting usefulness, not claim that it is current, breaking, popular, or trending.
+Exclude rumors, partisan persuasion, graphic tragedies, celebrity gossip, medical diagnosis, and personalized financial advice.
+Return exactly six suggestions as JSON.`,
+        config: {
+          systemInstruction:
+            "You create safe evergreen educational ideas for Motionly AI. You do not have live web access in this request, so never claim an idea is current or trending. Return only valid JSON matching the requested schema.",
+          responseMimeType: "application/json",
+          responseJsonSchema: {
+            type: "object",
+            required: ["suggestions"],
+            properties: {
+              suggestions: {
+                type: "array",
+                minItems: 6,
+                maxItems: 6,
+                items: {
+                  type: "object",
+                  required: ["title", "idea", "whyNow", "category"],
+                  properties: {
+                    title: { type: "string" },
+                    idea: { type: "string" },
+                    whyNow: { type: "string" },
+                    category: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+          temperature: 0.55,
+          maxOutputTokens: 3_000,
+        },
+      });
+      selectedModel = candidateModel;
+      break;
+    } catch (error) {
+      const status = getProviderErrorStatus(error);
+      const retryable = status === 429 || status === 503 || status === 504;
+      if (!retryable || index === candidateModels.length - 1) {
+        throw new TrendingTopicsError("PROVIDER_REQUEST_FAILED", status, {
+          cause: error,
+        });
+      }
+    }
+  }
+
+  if (!response) throw new TrendingTopicsError("EMPTY_RESPONSE");
+  const text = response.text?.trim();
+  if (!text) throw new TrendingTopicsError("EMPTY_RESPONSE");
+  let parsed: z.infer<typeof responseSchema>;
+  try {
+    parsed = responseSchema.parse(JSON.parse(text));
+  } catch (error) {
+    throw new TrendingTopicsError("INVALID_RESPONSE", undefined, {
+      cause: error,
+    });
+  }
+  return {
+    suggestions: parsed.suggestions,
+    sources: [],
+    searchQueries: [],
+    generatedAt: new Date().toISOString(),
+    model: selectedModel,
+  };
+}

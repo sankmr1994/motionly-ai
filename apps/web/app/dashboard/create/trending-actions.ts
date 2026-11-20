@@ -67,17 +67,22 @@ export async function loadTrendingTopics(
       sources: result.sources,
       generatedAt: result.generatedAt,
       cached: result.cached,
-      ...(result.fallbackMode === "evergreen"
+      ...(result.fallbackMode === "ai-evergreen"
         ? {
             message:
-              "Live topic discovery is temporarily unavailable, so here are reliable starter ideas matched to your preferences.",
+              "Live search is unavailable, so Gemini created personalized evergreen ideas without claiming they are trending.",
           }
-        : result.stale
+        : result.fallbackMode === "evergreen"
           ? {
               message:
-                "Showing your last saved ideas because live topic discovery is unavailable right now.",
+                "Gemini is temporarily unavailable, so here are Motionly's reliable built-in starter ideas.",
             }
-          : {}),
+          : result.stale
+            ? {
+                message:
+                  "Showing your last saved ideas because live topic discovery is unavailable right now.",
+              }
+            : {}),
     };
   } catch (error) {
     if (error instanceof TrendingTopicsError && error.status === 429) {

@@ -1,5 +1,6 @@
 import {
   createEvergreenTopicSuggestions,
+  generatePersonalizedEvergreenTopicSuggestions,
   generateTrendingTopicSuggestions,
   type TrendingTopicResult,
 } from "@motionly/ai";
@@ -57,7 +58,7 @@ export async function getTrendingTopicsForOwner(input: {
       language: input.language,
       timezone: input.timezone,
     });
-  } catch (error) {
+  } catch (liveError) {
     if (cached) {
       return {
         ...cached.result,
@@ -66,6 +67,28 @@ export async function getTrendingTopicsForOwner(input: {
         refreshAvailableAt: now.toISOString(),
         fallbackMode: "stale-cache" as const,
       };
+    }
+    try {
+      const aiFallback = await generatePersonalizedEvergreenTopicSuggestions({
+        category: input.category,
+        language: input.language,
+      });
+      return {
+        ...aiFallback,
+        cached: false,
+        stale: true,
+        refreshAvailableAt: now.toISOString(),
+        fallbackMode: "ai-evergreen" as const,
+        providerStatus:
+          typeof liveError === "object" &&
+          liveError !== null &&
+          "status" in liveError
+            ? Number(liveError.status) || undefined
+            : undefined,
+      };
+    } catch {
+      // The provider itself is unavailable, so keep the create flow useful with
+      // a small, clearly labelled, application-owned starter library.
     }
     return {
       suggestions: createEvergreenTopicSuggestions(
@@ -81,8 +104,10 @@ export async function getTrendingTopicsForOwner(input: {
       refreshAvailableAt: now.toISOString(),
       fallbackMode: "evergreen" as const,
       providerStatus:
-        typeof error === "object" && error !== null && "status" in error
-          ? Number(error.status) || undefined
+        typeof liveError === "object" &&
+        liveError !== null &&
+        "status" in liveError
+          ? Number(liveError.status) || undefined
           : undefined,
     };
   }
