@@ -64,6 +64,9 @@ importers:
       "@remotion/studio":
         specifier: 4.0.541
         version: 4.0.541(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      "@remotion/studio-shared":
+        specifier: 4.0.541
+        version: 4.0.541(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       "@remotion/timeline-utils":
         specifier: 4.0.541
         version: 4.0.541(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
