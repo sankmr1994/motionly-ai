@@ -56,6 +56,17 @@ function getVideoEntryPoint() {
   );
 }
 
+function getSharedEntryPoint() {
+  const candidates = [
+    resolve(process.cwd(), "../../packages/shared/src/index.ts"),
+    resolve(process.cwd(), "packages/shared/src/index.ts"),
+    resolve(process.cwd(), "../packages/shared/src/index.ts"),
+  ];
+  return (
+    candidates.find((candidate) => existsSync(candidate)) ?? candidates[0]!
+  );
+}
+
 function getErrorFingerprint(error: unknown) {
   const value =
     error instanceof Error
@@ -234,6 +245,16 @@ async function startSandboxVideoRender(
     bundleDirectory = await bundle({
       entryPoint,
       publicDir: prepared.workspace.publicDir,
+      webpackOverride: (configuration) => ({
+        ...configuration,
+        resolve: {
+          ...configuration.resolve,
+          alias: {
+            ...configuration.resolve?.alias,
+            "@motionly/shared": getSharedEntryPoint(),
+          },
+        },
+      }),
       onProgress: (progress) => {
         void updateVideoRenderProgress(
           ownerId,

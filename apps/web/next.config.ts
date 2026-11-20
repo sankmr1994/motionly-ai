@@ -15,6 +15,8 @@ const nextConfig: NextConfig = {
     "/*": [
       "../../packages/video/src/**/*",
       "../../packages/video/package.json",
+      "../../packages/shared/src/**/*",
+      "../../packages/shared/package.json",
       "node_modules/@remotion/studio/**/*",
       "node_modules/@remotion/timeline-utils/**/*",
       "node_modules/remotion/**/*",
