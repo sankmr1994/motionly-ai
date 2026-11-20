@@ -20,6 +20,7 @@
     "@motionly/video": "workspace:*",
     "@remotion/bundler": "4.0.541",
     "@remotion/player": "4.0.541",
+    "@remotion/studio": "4.0.541",
     "@remotion/vercel": "4.0.541",
     "@vercel/blob": "2.3.0",
     "@vercel/sandbox": "1.6.0",

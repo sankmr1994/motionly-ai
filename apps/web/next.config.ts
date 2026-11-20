@@ -9,9 +9,13 @@ if (existsSync(workspaceEnvironment)) {
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@motionly/ai", "@motionly/shared", "@motionly/video"],
-  serverExternalPackages: ["@remotion/bundler"],
+  serverExternalPackages: ["@remotion/bundler", "@remotion/studio"],
+  outputFileTracingRoot: resolve(process.cwd(), "../.."),
   outputFileTracingIncludes: {
-    "/*": ["../../packages/video/src/**/*"],
+    "/*": [
+      "../../packages/video/src/**/*",
+      "node_modules/@remotion/studio/**/*",
+    ],
   },
 };
 
