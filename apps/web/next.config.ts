@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
       "../../node_modules/.pnpm/@mediabunny+*/node_modules/@mediabunny/**/*",
       "../../node_modules/.pnpm/@remotion+web-renderer@*/node_modules/**/*",
       "../../node_modules/.pnpm/mediabunny@*/node_modules/mediabunny/**/*",
+      "../../node_modules/.pnpm/zod@*/node_modules/zod/**/*",
       "node_modules/@jridgewell/**/*",
       "node_modules/@mediabunny/**/*",
       "node_modules/@remotion/**/*",
