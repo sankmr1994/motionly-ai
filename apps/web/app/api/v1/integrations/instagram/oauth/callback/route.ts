@@ -59,6 +59,7 @@ export async function GET(request: NextRequest) {
       accountType: account.accountType,
       token: encryptInstagramToken(token.accessToken, config.encryptionKey),
       grantedScopes: token.scopes,
+      apiHost: account.apiHost,
       tokenExpiresAt: token.expiresIn
         ? new Date(Date.now() + token.expiresIn * 1_000)
         : undefined,

@@ -121,4 +121,26 @@ export const migrations: Migration[] = [
         .createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
     },
   },
+  {
+    id: "007-instagram-publication-indexes",
+    description:
+      "Add owner-scoped Instagram publication and media-token indexes",
+    async up(database) {
+      await database
+        .collection("publicationJobs")
+        .createIndex({ ownerId: 1, projectId: 1, createdAt: -1 });
+      await database
+        .collection("publicationJobs")
+        .createIndex({ mediaTokenHash: 1 }, { unique: true });
+      await database
+        .collection("publicationJobs")
+        .createIndex(
+          { ownerId: 1, renderJobId: 1 },
+          { name: "publication_by_render", unique: true },
+        );
+      await database
+        .collection("publicationJobs")
+        .createIndex({ mediaTokenExpiresAt: 1 });
+    },
+  },
 ];

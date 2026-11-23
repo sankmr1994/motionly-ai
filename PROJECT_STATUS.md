@@ -2,9 +2,9 @@
 
 > **Read this file first.** It is the source of truth for what Motionly is, what is implemented, what is only designed, and what should be built next.
 
-Last updated: **2026-11-20**
-Current implementation phase: **Deployment Phase 4 — Vercel production deployment live; validation in progress**
-Next planned phase: **Complete hosted rendering validation, then connect the final custom domain and Meta callback**
+Last updated: **2026-11-23**
+Current implementation phase: **Phase 7 — manual Instagram Reel publishing implemented; live Meta verification pending**
+Next planned phase: **Apply publication indexes, verify the connected test account, and publish one approved test Reel**
 
 ## 1. Product summary
 
@@ -14,20 +14,20 @@ V1 is creator-first and Instagram-first. Billing, subscriptions, payments, and i
 
 ## 2. Status at a glance
 
-| Phase                    | Scope                                                                            | Status                                                                                          |
-| ------------------------ | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Product and architecture | PRD, system, API, database, Instagram integration, brand direction               | Complete                                                                                        |
-| Video proof of concept   | Solar eclipse, compound interest, binary search                                  | Complete and verified                                                                           |
-| Phase 0                  | Monorepo foundation, configuration, database adapter, health checks, logging, CI | Complete                                                                                        |
-| Phase 1                  | Porcelain Cobalt design system and public homepage                               | Approved, implemented, and browser-verified                                                     |
-| Phase 2                  | Email/password authentication, verification, recovery, and onboarding            | Core flow implemented; live recovery delivery check remains                                     |
-| Phase 3                  | Dashboard and project management                                                 | Complete and product-owner approved                                                             |
-| Phase 4                  | Idea-to-storyboard workflow                                                      | Complete: generation, references, revision history, editing, review, regeneration, and approval |
-| Phase 5                  | Production video-generation pipeline                                             | Complete locally: narration, captions, rendering, and private R2 media persistence              |
-| Phase 6                  | Completed-video experience                                                       | Complete locally: R2 playback, confirmation, approval, and protected MP4 download               |
-| Phase 7                  | Manual Instagram publishing and one-time scheduling                              | In progress: secure account-connection foundation implemented                                   |
-| Phase 8                  | Recurring content generation and publishing                                      | Designed; not implemented                                                                       |
-| Phase 9                  | Production hardening and launch                                                  | Not started                                                                                     |
+| Phase                    | Scope                                                                            | Status                                                                                           |
+| ------------------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Product and architecture | PRD, system, API, database, Instagram integration, brand direction               | Complete                                                                                         |
+| Video proof of concept   | Solar eclipse, compound interest, binary search                                  | Complete and verified                                                                            |
+| Phase 0                  | Monorepo foundation, configuration, database adapter, health checks, logging, CI | Complete                                                                                         |
+| Phase 1                  | Porcelain Cobalt design system and public homepage                               | Approved, implemented, and browser-verified                                                      |
+| Phase 2                  | Email/password authentication, verification, recovery, and onboarding            | Core flow implemented; live recovery delivery check remains                                      |
+| Phase 3                  | Dashboard and project management                                                 | Complete and product-owner approved                                                              |
+| Phase 4                  | Idea-to-storyboard workflow                                                      | Complete: generation, references, revision history, editing, review, regeneration, and approval  |
+| Phase 5                  | Production video-generation pipeline                                             | Complete locally: narration, captions, rendering, and private R2 media persistence               |
+| Phase 6                  | Completed-video experience                                                       | Complete locally: R2 playback, confirmation, approval, and protected MP4 download                |
+| Phase 7                  | Manual Instagram publishing and one-time scheduling                              | In progress: connection and confirmed manual Reel publishing implemented; live Meta test pending |
+| Phase 8                  | Recurring content generation and publishing                                      | Designed; not implemented                                                                        |
+| Phase 9                  | Production hardening and launch                                                  | Not started                                                                                      |
 
 ## 3. Phase 0 completed work
 
@@ -209,6 +209,17 @@ Phase 7A Instagram account-connection foundation implemented on **2026-11-19**:
 - Automated verification passed: all workspace type checks, all **69** tests, and the optimized Next.js production build. Manual signed-in browser testing was intentionally left to the product owner.
 - Phase 1 stabilization is complete on the `develop` branch: the full Instagram foundation was reviewed, formatting passed, all workspace type checks passed, all **69** automated tests passed, and the optimized Next.js build exposed both OAuth routes and the Settings page successfully. No Meta credentials were added and migration `006` remains intentionally unapplied until the deployed HTTPS environment is configured.
 
+Phase 7B confirmed manual Reel publishing implemented on **2026-11-23**:
+
+- Added a deliberate Publish to Instagram action only for approved finished videos. A confirmation dialog names the connected account, explains that a real Reel will be created, allows caption editing, and lets the creator choose whether the Reel also appears in the Instagram feed.
+- Added an owner-scoped durable publication record with encrypted connection-token access, provider container/media IDs, safe status/error handling, duplicate prevention, a 15-minute interrupted-attempt recovery boundary, and a permanent published-state record. Raw Meta access tokens never enter the browser or publication record.
+- Added a short-lived, unguessable media-ingestion URL so Meta can retrieve only the exact approved private R2 MP4 during processing. The endpoint supports byte ranges, expires after 30 minutes, and stops serving after ingestion completes or fails.
+- Added Reel media validation for Motionly's 720 × 1280 MP4 contract, duration, frame rate, and file size before any external request. Publishing follows Meta's container creation, processing-status, and `media_publish` sequence and stores the resulting permalink when available.
+- Added the finished-video published state and direct View Reel link. When Instagram is not connected, the workflow links to Settings instead of exposing a broken publish action.
+- Replaced repetitive My Videos artwork with deterministic topic-aware thumbnails. Rainbow, finance, search, habit, and general topics now receive distinct code-native illustrations and color palettes while drafts and completed videos retain the same compact card layout.
+- Added migration `007-instagram-publication-indexes`; migrations `006` and `007` still require the configured Atlas run before live publishing verification.
+- Verification passed for all changed-file formatting, all workspace type checks, all **78** automated tests, and the optimized Next.js production build. The first actual Instagram Reel was intentionally not published without product-owner approval.
+
 Vercel deployment Phase 2 completed on **2026-11-19**:
 
 - Added an app-scoped `apps/web/vercel.json` for the Next.js framework, frozen pnpm installation, standard app build/dev commands, and Fluid compute. The required Vercel project Root Directory is `apps/web`; no output-directory override is used.
@@ -314,12 +325,12 @@ Copy `.env.example` to `.env.local` and supply local values. Never print, commit
 - Remotion licensing must be confirmed before commercial production launch.
 - The production Gemini model remains environment-configurable. Live account verification currently supports and uses `gemini-3.5-flash-lite`; `gemini-2.5-flash-lite` is listed by the API but rejects new users and must not be selected.
 - Better Auth, project repositories, durable narration/render jobs, caption review snapshots, and private R2 media persistence are wired. Inngest execution and Sentry remain deferred to their planned production-hardening slices. Direct short-lived R2 URLs remain a later performance optimization; current authenticated routes preserve owner checks and private downloads.
-- Instagram account connection is implemented locally but not live-configured. It still requires the Meta App Secret, a working deployed HTTPS callback on the same Motionly origin, the Unified Login configuration ID, an encryption key, one eligible test Creator/Business account, and later Meta App Review. Publishing and scheduling remain design-only.
-- Stitch screens 01–18 are approved. The public homepage and authenticated workflow through finished-video review are implemented; Instagram publishing and scheduling screens remain design-only.
+- Instagram account connection and confirmed manual publishing are implemented in code but still require live Meta configuration verification, migrations `006` and `007`, and one explicitly approved test Reel. Recurring scheduling remains design-only.
+- Stitch screens 01–18 are approved. The public homepage and authenticated workflow through finished-video review are implemented; confirmed manual Instagram publishing now follows the same design system, while scheduling remains design-only.
 
 ## 10. Exact next action
 
-Validate production narration, authenticated R2 playback/download, and one owner-scoped 30-second 720p Vercel Sandbox render end to end. After those pass, purchase/connect the final domain and configure the matching Meta Instagram OAuth callback.
+Apply migrations `006` and `007`, verify the connected Creator test account on the deployed callback, and publish one approved test Reel only after the product owner explicitly confirms the external post. Then begin one-time scheduling.
 
 ## 11. Update protocol for future developers and agents
 

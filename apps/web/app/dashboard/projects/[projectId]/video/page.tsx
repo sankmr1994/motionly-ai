@@ -1,11 +1,15 @@
 import {
+  getInstagramConnection,
+  getLatestInstagramPublication,
   getLatestVideoRenderJob,
   getProjectPlan,
   VIDEO_RENDER_PIPELINE_VERSION,
 } from "@motionly/db";
+import { isInstagramConfigured } from "@motionly/config";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { RenderStatusPoller } from "../../../../../components/render-status-poller";
+import { InstagramPublishActions } from "../../../../../components/instagram-publish-actions";
 import { StudioShell } from "../../../../../components/studio-shell";
 import { VideoRenderActionButton } from "../../../../../components/video-render-action-button";
 import { VideoReviewActions } from "../../../../../components/video-review-actions";
@@ -28,6 +32,7 @@ export default async function VideoPage({
     rendering?: string;
     ready?: string;
     approved?: string;
+    published?: string;
   }>;
 }) {
   const { session } = await requireStudioSession();
@@ -36,15 +41,21 @@ export default async function VideoPage({
   await reconcileVideoRenderForOwner(session.user.id, projectId).catch(
     () => undefined,
   );
-  const [plan, job] = await Promise.all([
+  const [plan, job, instagramConnection] = await Promise.all([
     getProjectPlan(session.user.id, projectId),
     getLatestVideoRenderJob(session.user.id, projectId),
+    getInstagramConnection(session.user.id),
   ]);
   if (!plan) notFound();
   if (plan.approvalStatus !== "APPROVED") {
     redirect(`/dashboard/projects/${projectId}/storyboard`);
   }
   if (!job) redirect(`/dashboard/projects/${projectId}/captions`);
+  const instagramPublication = await getLatestInstagramPublication(
+    session.user.id,
+    projectId,
+  );
+  const instagramConfigured = isInstagramConfigured();
   const videoUrl = `/api/v1/projects/${projectId}/renders/${job.id}/video`;
   const motionUpdateAvailable =
     job.status === "COMPLETED" &&
@@ -55,7 +66,17 @@ export default async function VideoPage({
       active="videos"
       user={{ name: session.user.name, email: session.user.email }}
     >
-      {notices.approved === "1" ? (
+      {notices.published === "1" ? (
+        <div className="studio-success" role="status">
+          <span>✓</span>
+          <div>
+            <strong>Reel published to Instagram</strong>
+            <p>
+              Your approved video is now available on the connected account.
+            </p>
+          </div>
+        </div>
+      ) : notices.approved === "1" ? (
         <div className="studio-success" role="status">
           <span>✓</span>
           <div>
@@ -231,6 +252,44 @@ export default async function VideoPage({
                   </p>
                 </div>
                 <a href={`${videoUrl}?download=1`}>↓ Download MP4</a>
+                {instagramPublication?.status === "PUBLISHED" ? (
+                  <div className="instagram-published-status">
+                    <span>◎</span>
+                    <p>
+                      <strong>Published to Instagram</strong>
+                      {instagramPublication.permalink ? (
+                        <a
+                          href={instagramPublication.permalink}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          View Reel ↗
+                        </a>
+                      ) : (
+                        "The Reel is available on your connected account."
+                      )}
+                    </p>
+                  </div>
+                ) : instagramConfigured && instagramConnection ? (
+                  <InstagramPublishActions
+                    projectId={projectId}
+                    jobId={job.id}
+                    title={plan.project.title}
+                    username={instagramConnection.username}
+                  />
+                ) : instagramConfigured ? (
+                  <Link
+                    className="instagram-connect-prompt"
+                    href="/dashboard/settings"
+                  >
+                    Connect Instagram to publish →
+                  </Link>
+                ) : (
+                  <p className="instagram-setup-note">
+                    Instagram publishing will appear after the administrator
+                    completes Meta setup.
+                  </p>
+                )}
               </div>
             ) : (
               <div className="video-pending-actions">

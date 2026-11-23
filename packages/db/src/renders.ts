@@ -161,6 +161,18 @@ export type VideoLibraryRenderState = {
   completedAt?: string;
 };
 
+export type ApprovedRenderPublicationSource = {
+  jobId: string;
+  projectId: string;
+  assetKey: string;
+  mimeType: "video/mp4";
+  byteLength: number;
+  durationSeconds: number;
+  width: 720;
+  height: 1280;
+  fps: 30;
+};
+
 const toObjectId = (value: string) =>
   ObjectId.isValid(value) ? new ObjectId(value) : null;
 
@@ -648,6 +660,39 @@ export async function getRenderedVideoAsset(
         reviewStatus: job.review.status,
       }
     : null;
+}
+
+export async function getApprovedRenderPublicationSource(
+  ownerId: string,
+  projectId: string,
+  jobId: string,
+): Promise<ApprovedRenderPublicationSource | null> {
+  const projectObjectId = toObjectId(projectId);
+  const jobObjectId = toObjectId(jobId);
+  if (!projectObjectId || !jobObjectId) return null;
+  const job = await (
+    await getDatabase()
+  )
+    .collection<RenderJobDocument>("renderJobs")
+    .findOne({
+      _id: jobObjectId,
+      ownerId,
+      projectId: projectObjectId,
+      status: "COMPLETED",
+      "review.status": "APPROVED",
+    });
+  if (!job?.output) return null;
+  return {
+    jobId: job._id.toHexString(),
+    projectId: job.projectId.toHexString(),
+    assetKey: job.output.assetKey,
+    mimeType: job.output.mimeType,
+    byteLength: job.output.byteLength,
+    durationSeconds: job.output.durationSeconds,
+    width: job.output.width,
+    height: job.output.height,
+    fps: job.output.fps,
+  };
 }
 
 export async function approveRenderedVideo(

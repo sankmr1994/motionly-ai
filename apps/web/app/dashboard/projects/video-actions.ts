@@ -5,6 +5,10 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "../../../lib/auth";
+import {
+  InstagramPublishingError,
+  publishApprovedVideoToInstagram,
+} from "../../../lib/instagram-publishing";
 import { startVideoRenderForOwner } from "../../../lib/video-rendering";
 
 export type VideoActionState = { message?: string };
@@ -64,4 +68,38 @@ export async function approveVideoAction(
   revalidatePath(`/dashboard/projects/${projectId}/video`);
   revalidatePath("/dashboard");
   redirect(`/dashboard/projects/${projectId}/video?approved=1`);
+}
+
+export async function publishInstagramAction(
+  projectId: string,
+  jobId: string,
+  _previousState: VideoActionState,
+  formData: FormData,
+): Promise<VideoActionState> {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user?.emailVerified) redirect("/sign-in");
+  if (formData.get("confirmation") !== "PUBLISH_INSTAGRAM") {
+    return { message: "Confirm Instagram publishing before continuing." };
+  }
+  const caption = String(formData.get("caption") ?? "");
+  const shareToFeed = formData.get("shareToFeed") === "on";
+  try {
+    await publishApprovedVideoToInstagram({
+      ownerId: session.user.id,
+      projectId,
+      renderJobId: jobId,
+      caption,
+      shareToFeed,
+    });
+  } catch (error) {
+    return {
+      message:
+        error instanceof InstagramPublishingError
+          ? error.safeMessage
+          : "Instagram could not publish this Reel. Your video is safe—please try again.",
+    };
+  }
+  revalidatePath(`/dashboard/projects/${projectId}/video`);
+  revalidatePath("/dashboard");
+  redirect(`/dashboard/projects/${projectId}/video?published=1`);
 }

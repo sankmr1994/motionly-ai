@@ -14,7 +14,7 @@ type InstagramOAuthStateDocument = {
   schemaVersion: "1";
 };
 
-type EncryptedToken = {
+export type EncryptedInstagramConnectionToken = {
   algorithm: "aes-256-gcm";
   keyVersion: "1";
   iv: string;
@@ -30,7 +30,8 @@ type InstagramConnectionDocument = {
   username?: string;
   displayName?: string;
   accountType?: string;
-  token: EncryptedToken;
+  token: EncryptedInstagramConnectionToken;
+  apiHost?: "graph.instagram.com" | "graph.facebook.com";
   grantedScopes: string[];
   status: "CONNECTED" | "NEEDS_REAUTHORIZATION" | "DISCONNECTED";
   tokenExpiresAt?: Date;
@@ -50,6 +51,11 @@ export type InstagramConnectionSummary = {
   grantedScopes: string[];
   connectedAt: string;
   lastVerifiedAt: string;
+};
+
+export type InstagramConnectionCredentials = InstagramConnectionSummary & {
+  token: EncryptedInstagramConnectionToken;
+  apiHost: "graph.instagram.com" | "graph.facebook.com";
 };
 
 function hashState(state: string) {
@@ -120,14 +126,30 @@ export async function getInstagramConnection(
   return connection ? toSummary(connection) : null;
 }
 
+export async function getInstagramConnectionCredentials(
+  ownerId: string,
+): Promise<InstagramConnectionCredentials | null> {
+  const database = await getDatabase();
+  const connection = await database
+    .collection<InstagramConnectionDocument>("socialConnections")
+    .findOne({ ownerId, provider: "INSTAGRAM", status: "CONNECTED" });
+  if (!connection) return null;
+  return {
+    ...toSummary(connection),
+    token: connection.token,
+    apiHost: connection.apiHost ?? "graph.instagram.com",
+  };
+}
+
 export async function saveInstagramConnection(input: {
   ownerId: string;
   providerAccountId: string;
   username?: string;
   displayName?: string;
   accountType?: string;
-  token: EncryptedToken;
+  token: EncryptedInstagramConnectionToken;
   grantedScopes: string[];
+  apiHost?: "graph.instagram.com" | "graph.facebook.com";
   tokenExpiresAt?: Date;
 }): Promise<InstagramConnectionSummary> {
   const database = await getDatabase();
@@ -143,6 +165,7 @@ export async function saveInstagramConnection(input: {
         displayName: input.displayName,
         accountType: input.accountType,
         token: input.token,
+        apiHost: input.apiHost ?? "graph.instagram.com",
         grantedScopes: [...new Set(input.grantedScopes)].sort(),
         status: "CONNECTED",
         tokenExpiresAt: input.tokenExpiresAt,

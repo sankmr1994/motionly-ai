@@ -22,6 +22,7 @@ export type InstagramProviderAccount = {
   username?: string;
   name?: string;
   accountType?: string;
+  apiHost: "graph.instagram.com" | "graph.facebook.com";
 };
 
 function encryptionKey(value: string) {
@@ -153,7 +154,7 @@ export async function resolveInstagramProviderAccount(
     const linked = pages.data
       ?.map((page) => page.instagram_business_account)
       .find(Boolean);
-    if (linked) return linked;
+    if (linked) return { ...linked, apiHost: "graph.facebook.com" };
   } catch {
     // Instagram-only tokens are resolved by graph.instagram.com below.
   }
@@ -184,5 +185,6 @@ export async function resolveInstagramProviderAccount(
     username: direct.username,
     name: direct.name,
     accountType: direct.account_type,
+    apiHost: "graph.instagram.com",
   };
 }

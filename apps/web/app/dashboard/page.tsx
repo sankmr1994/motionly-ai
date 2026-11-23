@@ -5,6 +5,7 @@ import {
 } from "@motionly/db";
 import Link from "next/link";
 import { ProjectActions } from "../../components/project-actions";
+import { ProjectThumbnail } from "../../components/project-thumbnail";
 import { StudioIcon } from "../../components/studio-icon";
 import { StudioShell } from "../../components/studio-shell";
 import { StoryboardActionButton } from "../../components/storyboard-action-button";
@@ -147,21 +148,16 @@ export default async function DashboardPage({
 
         {projects.length ? (
           <div className="project-grid">
-            {projects.map((project, index) => {
+            {projects.map((project) => {
               const video = videoLibraryPresentation(
                 videoRenderStates[project.id],
               );
               return (
                 <article className="project-card" key={project.id}>
-                  <div className="project-thumbnail">
-                    <span>{String(index + 1).padStart(2, "0")}</span>
-                    <div>
-                      <i />
-                      <i />
-                      <i />
-                    </div>
-                    <small>9:16</small>
-                  </div>
+                  <ProjectThumbnail
+                    title={project.title}
+                    duration={project.video.targetDurationSeconds}
+                  />
                   <div className="project-card-copy">
                     <div className="project-card-meta">
                       <div>
