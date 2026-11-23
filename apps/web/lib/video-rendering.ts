@@ -41,7 +41,6 @@ type SandboxRenderStage =
   | "prepare"
   | "bundle"
   | "sandbox_create"
-  | "sandbox_dependency_install"
   | "bundle_upload"
   | "render_start"
   | "execution_attach";
@@ -274,27 +273,6 @@ async function startSandboxVideoRender(
           10 + Math.round(progress * 2),
         ),
     });
-    stage = "sandbox_dependency_install";
-    const dependencyInstall = await sandbox.runCommand({
-      cmd: "pnpm",
-      args: [
-        "add",
-        "@remotion/renderer@4.0.541",
-        "@remotion/compositor-linux-x64-gnu@4.0.541",
-        "@vercel/blob",
-        "zod@4.6.7",
-      ],
-      detached: true,
-    });
-    for await (const _log of dependencyInstall.logs()) {
-      // Drain the command stream so Vercel Sandbox can finish the install.
-    }
-    const dependencyInstallResult = await dependencyInstall.wait();
-    if (dependencyInstallResult.exitCode !== 0) {
-      throw new Error(
-        `Sandbox dependency installation failed: ${await dependencyInstallResult.stderr()}`,
-      );
-    }
     stage = "bundle_upload";
     // @remotion/vercel creates child directories such as
     // `remotion-bundle/public`, but current Vercel Sandboxes require the

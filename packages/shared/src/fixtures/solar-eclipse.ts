@@ -1,6 +1,6 @@
-import { storyboardSchema } from "../storyboard";
+import type { Storyboard } from "../storyboard";
 
-export const solarEclipseStoryboard = storyboardSchema.parse({
+export const solarEclipseStoryboard: Storyboard = {
   schemaVersion: "0.1",
   project: {
     name: "Motionly AI",
@@ -102,4 +102,4 @@ export const solarEclipseStoryboard = storyboardSchema.parse({
       ],
     },
   ],
-});
+};
