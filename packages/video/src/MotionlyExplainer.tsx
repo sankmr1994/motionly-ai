@@ -15,7 +15,13 @@ import {
 import { EclipseView } from "./EclipseView";
 import { FinanceVisual, type FinanceMode } from "./FinanceVisual";
 import { GenericVisual } from "./GenericVisual";
+import { SemanticVisual } from "./SemanticVisual";
 import { colors } from "./theme";
+import {
+  resolveVisualDomain,
+  shouldUseCelestialDiagram,
+  shouldUseFinanceVisual,
+} from "./visual-domain";
 
 export type MotionlyExplainerProps = {
   storyboard: Storyboard;
@@ -48,6 +54,7 @@ const Scene = ({
   captionStyle: CaptionStyle;
 }) => {
   const scene = storyboard.scenes[index]!;
+  const visualDomain = resolveVisualDomain(storyboard, scene);
   const frame = useCurrentFrame();
   const opacity = interpolate(frame, [0, 10], [0, 1], {
     extrapolateRight: "clamp",
@@ -109,7 +116,8 @@ const Scene = ({
         </h1>
       </div>
       <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
-        {scene.template === "ECLIPSE_VIEW" ? (
+        {scene.template === "ECLIPSE_VIEW" &&
+        shouldUseCelestialDiagram(visualDomain, scene.template) ? (
           <EclipseView />
         ) : [
             "SORTED_ARRAY",
@@ -117,17 +125,33 @@ const Scene = ({
             "DISCARD_HALF",
             "FOUND_TARGET",
             "COMPLEXITY",
-          ].includes(scene.template) ? (
+          ].includes(scene.template) && visualDomain === "ALGORITHM" ? (
           <BinarySearchVisual mode={scene.template as BinarySearchMode} />
-        ) : ["NUMBER_FLOW", "FORMULA", "GROWTH_CHART", "COMPARISON"].includes(
-            scene.template,
-          ) ? (
+        ) : shouldUseFinanceVisual(visualDomain, scene.template) ? (
           <FinanceVisual
             mode={scene.template as FinanceMode}
             labels={scene.objects}
           />
-        ) : ["DIAGRAM", "SHADOW_DIAGRAM"].includes(scene.template) ? (
+        ) : ["DIAGRAM", "SHADOW_DIAGRAM"].includes(scene.template) &&
+          shouldUseCelestialDiagram(visualDomain, scene.template) ? (
           <CelestialDiagram mode={mode} />
+        ) : [
+            "TITLE",
+            "DIAGRAM",
+            "SHADOW_DIAGRAM",
+            "ECLIPSE_VIEW",
+            "NUMBER_FLOW",
+            "FORMULA",
+            "GROWTH_CHART",
+            "COMPARISON",
+            "BEFORE_AFTER",
+            "SORTED_ARRAY",
+            "MIDPOINT",
+            "DISCARD_HALF",
+            "FOUND_TARGET",
+            "COMPLEXITY",
+          ].includes(scene.template) ? (
+          <SemanticVisual scene={scene} domain={visualDomain} />
         ) : (
           <GenericVisual scene={scene} />
         )}

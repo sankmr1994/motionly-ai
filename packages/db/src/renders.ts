@@ -227,7 +227,7 @@ export function getVideoRenderReadiness(
     : ("not_ready" as const);
 }
 
-export const VIDEO_RENDER_PIPELINE_VERSION = "2026-11-14.2";
+export const VIDEO_RENDER_PIPELINE_VERSION = "2026-11-23.1";
 
 export async function beginVideoRender(
   ownerId: string,

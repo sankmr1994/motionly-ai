@@ -220,6 +220,16 @@ Phase 7B confirmed manual Reel publishing implemented on **2026-11-23**:
 - Added migration `007-instagram-publication-indexes`; migrations `006` and `007` still require the configured Atlas run before live publishing verification.
 - Verification passed for all changed-file formatting, all workspace type checks, all **78** automated tests, and the optimized Next.js production build. The first actual Instagram Reel was intentionally not published without product-owner approval.
 
+Topic-compatible motion-graphics routing corrected on **2026-11-23**:
+
+- Removed the renderer assumption that every generic `DIAGRAM` is a solar-eclipse scene and every `GROWTH_CHART` is a compound-interest scene. That defect caused unrelated videos, including AI-transformer explainers, to display Sun/Moon/Earth artwork and dollar-denominated charts.
+- Added deterministic scene-domain classification for AI, space, finance, algorithms, nature, habits, and general concepts. Celestial compositions now require a genuine space topic, finance compositions require finance content, and binary-search compositions require an algorithm topic.
+- Added data-driven semantic hero, relationship diagram, flow, comparison, and chart compositions. They animate the current scene's own objects and use domain-specific shape/color treatments instead of borrowing fixed POC content.
+- Strengthened the Gemini scene-planning instruction with explicit semantic rules for titles, lists, timelines, processes, quantities, comparisons, diagrams, formulas, and charts. Charts and specialist imagery must now be justified by the scene content.
+- Bumped the render pipeline to `2026-11-23.1`, so previously completed videos show the existing **Render improved video** action. Stored MP4s remain immutable; selecting that action creates a corrected render from the same approved storyboard, narration, and captions.
+- Added routing regression tests proving that transformer diagrams cannot select celestial or finance graphics while intentional eclipse and compound-interest scenes retain their specialized families.
+- Verification passed for all changed-file formatting, every workspace type check, all **80** automated tests, and the optimized Next.js production build. Manual signed-in browser review remains with the product owner.
+
 Vercel deployment Phase 2 completed on **2026-11-19**:
 
 - Added an app-scoped `apps/web/vercel.json` for the Next.js framework, frozen pnpm installation, standard app build/dev commands, and Fluid compute. The required Vercel project Root Directory is `apps/web`; no output-directory override is used.

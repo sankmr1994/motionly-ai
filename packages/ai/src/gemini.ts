@@ -356,6 +356,7 @@ Return one JSON object with a "scenes" array. ${
     }
 Every scene must contain exactly these fields: "title", "template", "narration", and "objects".
 Use one of these template values: TITLE, BULLET_LIST, TIMELINE, PROCESS, STAT_CARD, ICON_GRID, BEFORE_AFTER, DIAGRAM, COMPARISON, FORMULA, or GROWTH_CHART.
+Choose templates by meaning: TITLE for an opening concept; BULLET_LIST or ICON_GRID for separate ideas; TIMELINE only for chronological events; PROCESS only for ordered steps or transformations; STAT_CARD only for labeled quantities; BEFORE_AFTER or COMPARISON for a real contrast; DIAGRAM for relationships between the named topic objects; FORMULA only for a genuine equation or symbolic relationship; and GROWTH_CHART only for a quantitative progression. Never choose a chart, formula, celestial object, money graphic, or scientific diagram unless the scene content directly calls for it.
 The "objects" value must be an array of short visual labels. Do not calculate timing or animation actions; Motionly adds those locally.`,
     config: {
       systemInstruction: `You plan concise educational explainer scenes for Motionly AI.
