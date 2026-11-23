@@ -1,4 +1,4 @@
-import { solarEclipseStoryboard } from "@motionly/shared/fixtures/solar-eclipse";
+import { solarEclipseStoryboard } from "../../shared/src/fixtures/solar-eclipse";
 import { Composition } from "remotion";
 import {
   MotionlyExplainer,
