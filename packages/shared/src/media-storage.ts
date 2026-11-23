@@ -47,3 +47,19 @@ export function createRenderedVideoAssetKey(
   assertIdentifier(input.jobId, "render job ID");
   return `${createProjectMediaPrefix(input)}/video/${input.jobId}/motionly-video.mp4`;
 }
+
+export function createSceneVisualAssetKey(
+  input: ProjectMediaIdentity & {
+    versionId: string;
+    sceneId: string;
+    promptHash: string;
+    extension: "png" | "jpg";
+  },
+) {
+  assertIdentifier(input.versionId, "version ID");
+  assertIdentifier(input.sceneId, "scene ID");
+  if (!/^[a-f0-9]{64}$/u.test(input.promptHash)) {
+    throw new Error("Invalid scene visual prompt hash for media storage.");
+  }
+  return `${createProjectMediaPrefix(input)}/visuals/${input.versionId}/${input.sceneId}-${input.promptHash.slice(0, 20)}.${input.extension}`;
+}

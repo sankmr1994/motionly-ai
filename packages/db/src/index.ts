@@ -84,3 +84,4 @@ export * from "./renders";
 export * from "./admin-media";
 export * from "./instagram-connections";
 export * from "./instagram-publications";
+export * from "./scene-visuals";

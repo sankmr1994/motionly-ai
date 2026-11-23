@@ -143,4 +143,19 @@ export const migrations: Migration[] = [
         .createIndex({ mediaTokenExpiresAt: 1 });
     },
   },
+  {
+    id: "008-scene-visual-asset-indexes",
+    description: "Add immutable-revision scene artwork cache indexes",
+    async up(database) {
+      await database
+        .collection("sceneVisualAssets")
+        .createIndex(
+          { ownerId: 1, versionId: 1, sceneId: 1, promptHash: 1 },
+          { unique: true },
+        );
+      await database
+        .collection("sceneVisualAssets")
+        .createIndex({ ownerId: 1, projectId: 1, revision: 1 });
+    },
+  },
 ];

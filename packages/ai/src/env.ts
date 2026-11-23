@@ -14,6 +14,11 @@ export const getGeminiConfig = () => ({
   fallbackModel: process.env.GEMINI_FALLBACK_MODEL || "gemini-3.5-flash",
 });
 
+export const getGeminiImageConfig = () => ({
+  apiKey: requireEnvironmentVariable("GEMINI_API_KEY"),
+  model: process.env.GEMINI_IMAGE_MODEL || "gemini-3.1-flash-lite-image",
+});
+
 export const getElevenLabsConfig = () => ({
   apiKey: requireEnvironmentVariable("ELEVENLABS_API_KEY"),
   voiceId: requireEnvironmentVariable("ELEVENLABS_VOICE_ID"),

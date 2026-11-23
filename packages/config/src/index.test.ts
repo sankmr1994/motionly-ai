@@ -12,6 +12,9 @@ describe("server environment", () => {
     expect(environment.APP_ENV).toBe("local");
     expect(environment.APP_URL).toBe("http://localhost:3000");
     expect(environment.LOG_LEVEL).toBe("info");
+    expect(environment.GEMINI_IMAGE_MODEL).toBe("gemini-3.1-flash-lite-image");
+    expect(environment.SCENE_VISUAL_PROVIDER).toBe("procedural");
+    expect(environment.PORTFOLIO_VIDEO_LIMIT).toBe(3);
   });
 
   it("rejects invalid public URLs", () => {
@@ -74,6 +77,15 @@ describe("server environment", () => {
         R2_ENDPOINT: "https://account.r2.cloudflarestorage.com",
       }),
     ).toThrow("All Cloudflare R2 settings must be configured together");
+  });
+
+  it("allows Gemini artwork only when explicitly selected", () => {
+    const environment = parseServerEnv({
+      SCENE_VISUAL_PROVIDER: "gemini",
+      PORTFOLIO_VIDEO_LIMIT: "5",
+    });
+    expect(environment.SCENE_VISUAL_PROVIDER).toBe("gemini");
+    expect(environment.PORTFOLIO_VIDEO_LIMIT).toBe(5);
   });
 
   it("accepts a complete account-scoped R2 configuration", () => {

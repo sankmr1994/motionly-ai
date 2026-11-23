@@ -69,3 +69,29 @@ export function shouldUseFinanceVisual(
     ["NUMBER_FLOW", "FORMULA", "GROWTH_CHART", "COMPARISON"].includes(template)
   );
 }
+
+export function shouldUseOpticsVisual(
+  domain: VisualDomain,
+  scene: StoryboardScene,
+) {
+  const text = `${scene.title ?? ""} ${scene.narration} ${scene.objects.join(" ")}`;
+  return (
+    domain === "NATURE" &&
+    /rainbow|refraction|spectrum|droplet|sunlight|light ray|colour|color/iu.test(
+      text,
+    )
+  );
+}
+
+export function shouldUseTransformerVisual(
+  domain: VisualDomain,
+  scene: StoryboardScene,
+) {
+  const text = `${scene.title ?? ""} ${scene.narration} ${scene.objects.join(" ")}`;
+  return (
+    domain === "AI" &&
+    /transformer|attention|token|language model|embedding|context|parallel/iu.test(
+      text,
+    )
+  );
+}

@@ -864,6 +864,13 @@ export async function deleteProject(
           { session, projection: { _id: 1, "output.assetKey": 1 } },
         )
         .toArray();
+      const sceneVisualAssets = await database
+        .collection<{ assetKey?: string }>("sceneVisualAssets")
+        .find(
+          { ownerId, projectId: id },
+          { session, projection: { assetKey: 1 } },
+        )
+        .toArray();
 
       await database
         .collection("planningJobs")
@@ -873,6 +880,9 @@ export async function deleteProject(
         .deleteMany({ ownerId, projectId: id }, { session });
       await database
         .collection("renderJobs")
+        .deleteMany({ ownerId, projectId: id }, { session });
+      await database
+        .collection("sceneVisualAssets")
         .deleteMany({ ownerId, projectId: id }, { session });
       await database
         .collection<ProjectVersionDocument>("projectVersions")
@@ -893,6 +903,9 @@ export async function deleteProject(
           ),
           ...renderJobs.flatMap((job) =>
             job.output?.assetKey ? [job.output.assetKey] : [],
+          ),
+          ...sceneVisualAssets.flatMap((asset) =>
+            asset.assetKey ? [asset.assetKey] : [],
           ),
         ],
       };

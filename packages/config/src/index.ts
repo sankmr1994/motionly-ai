@@ -18,6 +18,15 @@ export const serverEnvironmentSchema = z
     GEMINI_API_KEY: optionalSecret,
     GEMINI_MODEL: z.string().trim().min(1).default("gemini-3.5-flash-lite"),
     GEMINI_FALLBACK_MODEL: z.string().trim().min(1).default("gemini-3.5-flash"),
+    GEMINI_IMAGE_MODEL: z
+      .string()
+      .trim()
+      .min(1)
+      .default("gemini-3.1-flash-lite-image"),
+    SCENE_VISUAL_PROVIDER: z
+      .enum(["procedural", "gemini"])
+      .default("procedural"),
+    PORTFOLIO_VIDEO_LIMIT: z.coerce.number().int().min(1).max(20).default(3),
     ELEVENLABS_API_KEY: optionalSecret,
     ELEVENLABS_VOICE_ID: optionalSecret,
     ELEVENLABS_MODEL_ID: z
@@ -206,6 +215,33 @@ export function getDatabaseConfig(): {
     uri: environment.MONGODB_URI,
     databaseName: environment.MONGODB_DB_NAME,
     dnsServers: environment.MONGODB_DNS_SERVERS,
+  };
+}
+
+export function getGeminiImageConfig(): {
+  apiKey: string;
+  model: string;
+} {
+  const environment = getServerEnv();
+  if (!environment.GEMINI_API_KEY) {
+    throw new Error(
+      "Gemini image generation is not configured. Set GEMINI_API_KEY.",
+    );
+  }
+  return {
+    apiKey: environment.GEMINI_API_KEY,
+    model: environment.GEMINI_IMAGE_MODEL,
+  };
+}
+
+export function getSceneVisualConfig(): {
+  provider: "procedural" | "gemini";
+  portfolioVideoLimit: number;
+} {
+  const environment = getServerEnv();
+  return {
+    provider: environment.SCENE_VISUAL_PROVIDER,
+    portfolioVideoLimit: environment.PORTFOLIO_VIDEO_LIMIT,
   };
 }
 

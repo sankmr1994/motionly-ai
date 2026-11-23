@@ -15,12 +15,17 @@ import {
 import { EclipseView } from "./EclipseView";
 import { FinanceVisual, type FinanceMode } from "./FinanceVisual";
 import { GenericVisual } from "./GenericVisual";
+import { GeneratedSceneVisual } from "./GeneratedSceneVisual";
+import { OpticsVisual } from "./OpticsVisual";
 import { SemanticVisual } from "./SemanticVisual";
+import { TransformerVisual } from "./TransformerVisual";
 import { colors } from "./theme";
 import {
   resolveVisualDomain,
   shouldUseCelestialDiagram,
   shouldUseFinanceVisual,
+  shouldUseOpticsVisual,
+  shouldUseTransformerVisual,
 } from "./visual-domain";
 
 export type MotionlyExplainerProps = {
@@ -28,6 +33,7 @@ export type MotionlyExplainerProps = {
   audioFile?: string;
   audioPlaybackRate?: number;
   sceneAudioFiles?: Record<string, string>;
+  sceneVisualFiles?: Record<string, string>;
   sceneDurationsSeconds?: Record<string, number>;
   captionStyle?: CaptionStyle;
   captions?: CaptionCue[];
@@ -46,12 +52,14 @@ const Scene = ({
   sceneFromFrame,
   captions,
   captionStyle,
+  sceneVisualFile,
 }: {
   storyboard: Storyboard;
   index: number;
   sceneFromFrame: number;
   captions?: CaptionCue[];
   captionStyle: CaptionStyle;
+  sceneVisualFile?: string;
 }) => {
   const scene = storyboard.scenes[index]!;
   const visualDomain = resolveVisualDomain(storyboard, scene);
@@ -116,8 +124,25 @@ const Scene = ({
         </h1>
       </div>
       <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
-        {scene.template === "ECLIPSE_VIEW" &&
-        shouldUseCelestialDiagram(visualDomain, scene.template) ? (
+        {sceneVisualFile ? (
+          <div
+            style={{
+              height: 680,
+              position: "relative",
+              width: "100%",
+            }}
+          >
+            <GeneratedSceneVisual
+              fileName={sceneVisualFile}
+              sceneId={scene.id}
+            />
+          </div>
+        ) : shouldUseOpticsVisual(visualDomain, scene) ? (
+          <OpticsVisual scene={scene} />
+        ) : shouldUseTransformerVisual(visualDomain, scene) ? (
+          <TransformerVisual scene={scene} />
+        ) : scene.template === "ECLIPSE_VIEW" &&
+          shouldUseCelestialDiagram(visualDomain, scene.template) ? (
           <EclipseView />
         ) : [
             "SORTED_ARRAY",
@@ -237,6 +262,7 @@ export const MotionlyExplainer = ({
   audioFile,
   audioPlaybackRate = 1,
   sceneAudioFiles,
+  sceneVisualFiles,
   sceneDurationsSeconds,
   captionStyle = "KARAOKE",
   captions,
@@ -275,6 +301,7 @@ export const MotionlyExplainer = ({
               sceneFromFrame={scene.fromFrame}
               captions={captions}
               captionStyle={captionStyle}
+              sceneVisualFile={sceneVisualFiles?.[scene.id]}
             />
           </Sequence>
         );

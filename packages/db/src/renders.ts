@@ -116,6 +116,7 @@ export type VideoRenderInput = {
     durationSeconds: number;
   }>;
   captions: CaptionReview;
+  sceneVisualProvider: "procedural" | "gemini";
 };
 
 export type VideoRenderJobView = {
@@ -227,17 +228,32 @@ export function getVideoRenderReadiness(
     : ("not_ready" as const);
 }
 
-export const VIDEO_RENDER_PIPELINE_VERSION = "2026-11-23.1";
+export const VIDEO_RENDER_PIPELINE_VERSION = "2026-11-23.2";
+
+export function hasReachedPortfolioRenderLimit(
+  completedRenders: number,
+  maximum?: number,
+) {
+  return maximum !== undefined && completedRenders >= maximum;
+}
 
 export async function beginVideoRender(
   ownerId: string,
   projectId: string,
+  options: {
+    sceneVisualProvider?: "procedural" | "gemini";
+    maxCompletedRenders?: number;
+  } = {},
 ): Promise<
   | { ok: true; input: VideoRenderInput }
   | {
       ok: false;
       reason:
-        "not_found" | "not_ready" | "already_rendering" | "already_completed";
+        | "not_found"
+        | "not_ready"
+        | "already_rendering"
+        | "already_completed"
+        | "quota_reached";
       jobId?: string;
     }
 > {
@@ -254,7 +270,8 @@ export async function beginVideoRender(
             | "not_found"
             | "not_ready"
             | "already_rendering"
-            | "already_completed";
+            | "already_completed"
+            | "quota_reached";
           jobId?: string;
         } = { ok: false, reason: "not_found" };
     await session.withTransaction(async () => {
@@ -311,7 +328,7 @@ export async function beginVideoRender(
       }
       const inputHash = createHash("sha256")
         .update(
-          `${version.contentHash}:${narration._id.toHexString()}:${captions.data.version}:${VIDEO_RENDER_PIPELINE_VERSION}`,
+          `${version.contentHash}:${narration._id.toHexString()}:${captions.data.version}:${VIDEO_RENDER_PIPELINE_VERSION}:visual-${options.sceneVisualProvider ?? "procedural"}`,
         )
         .digest("hex");
       const latest = await database
@@ -362,6 +379,23 @@ export async function beginVideoRender(
           { session },
         );
       }
+      if (options.maxCompletedRenders !== undefined) {
+        const completedRenders = await database
+          .collection<RenderJobDocument>("renderJobs")
+          .countDocuments(
+            { ownerId, status: "COMPLETED" },
+            { session, limit: options.maxCompletedRenders },
+          );
+        if (
+          hasReachedPortfolioRenderLimit(
+            completedRenders,
+            options.maxCompletedRenders,
+          )
+        ) {
+          outcome = { ok: false, reason: "quota_reached" };
+          return;
+        }
+      }
       const now = new Date();
       const jobId = new ObjectId();
       await database.collection<RenderJobDocument>("renderJobs").insertOne(
@@ -403,6 +437,7 @@ export async function beginVideoRender(
             durationSeconds: scene.durationSeconds!,
           })),
           captions: captions.data,
+          sceneVisualProvider: options.sceneVisualProvider ?? "procedural",
         },
       };
     });
@@ -454,7 +489,7 @@ export async function attachVideoRenderExecution(
           execution: { ...execution, startedAt: new Date() },
           updatedAt: new Date(),
         },
-        $max: { progress: 12 },
+        $max: { progress: 22 },
       },
     );
   if (!result.modifiedCount) {

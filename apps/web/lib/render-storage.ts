@@ -35,6 +35,11 @@ function resolveAsset(assetKey: string) {
 export async function prepareRenderWorkspace(
   jobId: string,
   sceneAudio: Array<{ sceneId: string; audio: Uint8Array }>,
+  sceneVisuals: Array<{
+    sceneId: string;
+    image: Uint8Array;
+    fileName: string;
+  }>,
   props: unknown,
   identity: {
     ownerId: string;
@@ -49,12 +54,18 @@ export async function prepareRenderWorkspace(
   const outputAssetKey = createRenderedVideoAssetKey({ ...identity, jobId });
   const outputPath = resolve(storageRoot, jobId, "motionly-video.mp4");
   await mkdir(publicDir, { recursive: true });
-  await Promise.all(
-    sceneAudio.map(({ sceneId, audio }) => {
+  await Promise.all([
+    ...sceneAudio.map(({ sceneId, audio }) => {
       if (!safeSegment.test(sceneId)) throw new Error("Invalid scene ID.");
       return writeFile(resolve(publicDir, `${sceneId}_audio.mp3`), audio);
     }),
-  );
+    ...sceneVisuals.map(({ sceneId, image, fileName }) => {
+      if (!safeSegment.test(sceneId) || !safeSegment.test(fileName)) {
+        throw new Error("Invalid scene visual file name.");
+      }
+      return writeFile(resolve(publicDir, fileName), image);
+    }),
+  ]);
   await writeFile(propsPath, JSON.stringify(props), "utf8");
   await mkdir(dirname(outputPath), { recursive: true });
   return { publicDir, propsPath, outputPath, outputAssetKey };

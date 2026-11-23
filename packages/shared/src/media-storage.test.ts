@@ -3,6 +3,7 @@ import {
   createNarrationAssetKey,
   createReadableProjectSlug,
   createRenderedVideoAssetKey,
+  createSceneVisualAssetKey,
 } from "./media-storage";
 
 describe("readable media object keys", () => {
@@ -41,6 +42,23 @@ describe("readable media object keys", () => {
       }),
     ).toBe(
       "users/user123/projects/binary-search--project123/revision-2/video/render789/motionly-video.mp4",
+    );
+  });
+
+  it("creates revision-scoped scene artwork keys", () => {
+    expect(
+      createSceneVisualAssetKey({
+        ownerId: "user123",
+        projectId: "project123",
+        projectTitle: "How Rainbows Form",
+        revision: 4,
+        versionId: "version456",
+        sceneId: "scene-02",
+        promptHash: "a".repeat(64),
+        extension: "png",
+      }),
+    ).toBe(
+      "users/user123/projects/how-rainbows-form--project123/revision-4/visuals/version456/scene-02-aaaaaaaaaaaaaaaaaaaa.png",
     );
   });
 });

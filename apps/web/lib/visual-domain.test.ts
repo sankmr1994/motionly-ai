@@ -7,6 +7,8 @@ import {
   resolveVisualDomain,
   shouldUseCelestialDiagram,
   shouldUseFinanceVisual,
+  shouldUseOpticsVisual,
+  shouldUseTransformerVisual,
 } from "@motionly/video";
 import { describe, expect, it } from "vitest";
 
@@ -46,6 +48,26 @@ describe("topic-compatible visual routing", () => {
     expect(domain).toBe("AI");
     expect(shouldUseCelestialDiagram(domain, scene.template)).toBe(false);
     expect(shouldUseFinanceVisual(domain, "GROWTH_CHART")).toBe(false);
+    expect(shouldUseTransformerVisual(domain, scene)).toBe(true);
+  });
+
+  it("routes rainbow scenes to the animated optics family", () => {
+    const scene = {
+      ...transformerStoryboard.scenes[0]!,
+      title: "Sunlight enters a water droplet",
+      narration:
+        "The light refracts and separates into a visible colour spectrum.",
+      objects: ["sunlight", "water droplet", "refraction", "rainbow"],
+    };
+    const storyboard: Storyboard = {
+      ...transformerStoryboard,
+      project: { ...transformerStoryboard.project, topic: "How rainbows form" },
+      scenes: [scene],
+    };
+    const domain = resolveVisualDomain(storyboard, scene);
+    expect(domain).toBe("NATURE");
+    expect(shouldUseOpticsVisual(domain, scene)).toBe(true);
+    expect(shouldUseTransformerVisual(domain, scene)).toBe(false);
   });
 
   it("preserves the intentional eclipse and finance visual families", () => {

@@ -6,6 +6,8 @@ Last updated: **2026-11-23**
 Current implementation phase: **Phase 7 — manual Instagram Reel publishing implemented; live Meta verification pending**
 Next planned phase: **Apply publication indexes, verify the connected test account, and publish one approved test Reel**
 
+Latest video-quality and cost-control work (**2026-11-23**): V1 now defaults to the zero-marginal-cost `procedural` scene visual provider. Dedicated animated optics and transformer families provide topic-compatible rainbow/refraction and AI/attention scenes instead of unrelated reused diagrams. Public portfolio accounts are limited to three completed renders; configured administrators remain unlimited. The topic-specific Gemini 9:16 artwork pipeline is preserved behind the explicit `SCENE_VISUAL_PROVIDER=gemini` feature flag, caches generated assets by immutable revision and prompt hash in private R2, and is not enabled for V1. Migration `008` is only required if that future paid provider is enabled.
+
 ## 1. Product summary
 
 Motionly AI helps a non-technical creator turn a simple idea into a narrated, captioned, animated vertical video. The creator can review the plan, generate the video, download it, publish an approved video to Instagram, or configure a recurring review-first/automatic publishing schedule.

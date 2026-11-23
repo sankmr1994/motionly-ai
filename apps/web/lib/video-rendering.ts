@@ -1,4 +1,7 @@
-import { getVideoRenderingConfig } from "@motionly/config";
+import {
+  getSceneVisualConfig,
+  getVideoRenderingConfig,
+} from "@motionly/config";
 import {
   attachVideoRenderExecution,
   beginVideoRender,
@@ -25,6 +28,7 @@ import { existsSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { readNarrationAudio } from "./narration-storage";
+import { prepareSceneVisuals } from "./scene-visuals";
 import {
   cleanupRenderInputs,
   cleanupRenderWorkspace,
@@ -69,9 +73,7 @@ function getSharedEntryPoint() {
 
 function getErrorFingerprint(error: unknown) {
   const value =
-    error instanceof Error
-      ? `${error.name}:${error.message}`
-      : String(error);
+    error instanceof Error ? `${error.name}:${error.message}` : String(error);
   return createHash("sha256").update(value).digest("hex").slice(0, 16);
 }
 
@@ -96,9 +98,23 @@ async function prepareVideoRender(ownerId: string, input: VideoRenderInput) {
       `${scene.sceneId}_audio.mp3`,
     ]),
   );
+  const sceneVisuals =
+    input.sceneVisualProvider === "gemini"
+      ? await prepareSceneVisuals(ownerId, input, async (completed, total) => {
+          await updateVideoRenderProgress(
+            ownerId,
+            input.jobId,
+            5 + Math.round((completed / total) * 10),
+          );
+        })
+      : [];
+  const sceneVisualFiles = Object.fromEntries(
+    sceneVisuals.map((scene) => [scene.sceneId, scene.fileName]),
+  );
   const renderProps = {
     storyboard: input.storyboard,
     sceneAudioFiles,
+    sceneVisualFiles,
     sceneDurationsSeconds: compiled.sceneDurationsSeconds,
     captionStyle: input.captions.style,
     captions: compiled.captions,
@@ -106,6 +122,7 @@ async function prepareVideoRender(ownerId: string, input: VideoRenderInput) {
   const workspace = await prepareRenderWorkspace(
     input.jobId,
     audio,
+    sceneVisuals,
     renderProps,
     {
       ownerId,
@@ -239,7 +256,7 @@ async function startSandboxVideoRender(
   let stage: SandboxRenderStage = "prepare";
   try {
     const prepared = await prepareVideoRender(ownerId, input);
-    await updateVideoRenderProgress(ownerId, input.jobId, 6);
+    await updateVideoRenderProgress(ownerId, input.jobId, 16);
     stage = "bundle";
     const entryPoint = getVideoEntryPoint();
     bundleDirectory = await bundle({
@@ -259,7 +276,7 @@ async function startSandboxVideoRender(
         void updateVideoRenderProgress(
           ownerId,
           input.jobId,
-          6 + Math.round(progress * 4),
+          16 + Math.round(progress * 4),
         ).catch(() => undefined);
       },
     });
@@ -270,7 +287,7 @@ async function startSandboxVideoRender(
         updateVideoRenderProgress(
           ownerId,
           input.jobId,
-          10 + Math.round(progress * 2),
+          20 + Math.round(progress * 2),
         ),
     });
     stage = "bundle_upload";
@@ -380,7 +397,7 @@ export async function reconcileVideoRenderForOwner(
     await updateVideoRenderProgress(
       ownerId,
       active.jobId,
-      12 + Math.round(progress.overallProgress * 82),
+      22 + Math.round(progress.overallProgress * 72),
     );
     return;
   }
@@ -429,19 +446,26 @@ export async function reconcileVideoRenderForOwner(
 export async function startVideoRenderForOwner(
   ownerId: string,
   projectId: string,
+  options: { isAdmin?: boolean } = {},
 ): Promise<
   | { ok: true; jobId: string; reused: boolean }
   | {
       ok: false;
-      reason: "not_found" | "not_ready" | "already_rendering";
+      reason: "not_found" | "not_ready" | "already_rendering" | "quota_reached";
       jobId?: string;
     }
 > {
   // Validate hosted-render credentials before creating a durable job. This
   // avoids leaving a job in RENDERING when deployment configuration is absent.
   const config = getVideoRenderingConfig();
+  const sceneVisualConfig = getSceneVisualConfig();
   await reconcileVideoRenderForOwner(ownerId, projectId).catch(() => undefined);
-  const result = await beginVideoRender(ownerId, projectId);
+  const result = await beginVideoRender(ownerId, projectId, {
+    sceneVisualProvider: sceneVisualConfig.provider,
+    ...(options.isAdmin
+      ? {}
+      : { maxCompletedRenders: sceneVisualConfig.portfolioVideoLimit }),
+  });
   if (!result.ok) {
     if (result.reason === "already_completed") {
       return { ok: true, jobId: result.jobId!, reused: true };

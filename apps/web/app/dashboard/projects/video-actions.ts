@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "../../../lib/auth";
+import { isMotionlyAdmin } from "../../../lib/admin-access";
 import {
   InstagramPublishingError,
   publishApprovedVideoToInstagram,
@@ -20,10 +21,9 @@ export async function startVideoRenderAction(
 ): Promise<VideoActionState> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user?.emailVerified) redirect("/sign-in");
-  const result = await startVideoRenderForOwner(
-    session.user.id,
-    projectId,
-  ).catch(() => null);
+  const result = await startVideoRenderForOwner(session.user.id, projectId, {
+    isAdmin: isMotionlyAdmin(session.user.email),
+  }).catch(() => null);
   if (!result) {
     return {
       message:
@@ -35,6 +35,8 @@ export async function startVideoRenderAction(
       not_found: "This project could not be found.",
       not_ready:
         "Approve the current storyboard, narration, and captions before rendering.",
+      quota_reached:
+        "This portfolio account has reached its completed-video limit. Existing videos remain available to watch and download.",
     } as const;
     return { message: messages[result.reason] };
   }
