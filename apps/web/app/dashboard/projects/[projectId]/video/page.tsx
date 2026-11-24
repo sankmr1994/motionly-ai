@@ -242,7 +242,8 @@ export default async function VideoPage({
                   />
                 </div>
               </div>
-            ) : job.reviewStatus === "APPROVED" ? (
+            ) : null}
+            {job.reviewStatus === "APPROVED" ? (
               <div className="video-approved-actions">
                 <div>
                   <span>✓</span>
