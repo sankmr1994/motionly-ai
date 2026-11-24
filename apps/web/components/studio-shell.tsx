@@ -43,14 +43,6 @@ export function StudioShell({
             Create video
             <small>NEW</small>
           </Link>
-          <span aria-disabled="true" title="Coming in a later phase">
-            <StudioIcon name="templates" />
-            Templates
-          </span>
-          <span aria-disabled="true" title="Coming in a later phase">
-            <StudioIcon name="examples" />
-            Examples
-          </span>
           <Link
             className={active === "settings" ? "active" : ""}
             href="/dashboard/settings"
