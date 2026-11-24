@@ -3,11 +3,15 @@
 import { useRouter } from "next/navigation";
 import { authClient } from "../lib/auth-client";
 
-export function SignOutButton() {
+export function SignOutButton({
+  className = "dashboard-signout",
+}: {
+  className?: string;
+}) {
   const router = useRouter();
   return (
     <button
-      className="dashboard-signout"
+      className={className}
       onClick={async () => {
         await authClient.signOut();
         router.push("/");

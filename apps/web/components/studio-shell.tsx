@@ -2,6 +2,7 @@ import Link from "next/link";
 import { isMotionlyAdmin } from "../lib/admin-access";
 import { SignOutButton } from "./sign-out-button";
 import { StudioIcon } from "./studio-icon";
+import { StudioProfileMenu } from "./studio-profile-menu";
 
 export function StudioShell({
   active,
@@ -98,9 +99,7 @@ export function StudioShell({
             <Link href="/dashboard/create" aria-label="Create a video">
               <StudioIcon name="add" />
             </Link>
-            <span className="studio-avatar" aria-hidden="true">
-              {firstInitial}
-            </span>
+            <StudioProfileMenu user={user} isAdmin={isAdmin} />
           </div>
         </header>
         <main className="studio-content">{children}</main>

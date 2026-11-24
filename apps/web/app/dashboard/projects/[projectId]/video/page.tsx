@@ -12,6 +12,7 @@ import { RenderStatusPoller } from "../../../../../components/render-status-poll
 import { InstagramPublishActions } from "../../../../../components/instagram-publish-actions";
 import { StudioShell } from "../../../../../components/studio-shell";
 import { VideoRenderActionButton } from "../../../../../components/video-render-action-button";
+import { VideoPreviewPlayer } from "../../../../../components/video-preview-player";
 import { VideoReviewActions } from "../../../../../components/video-review-actions";
 import { requireStudioSession } from "../../../../../lib/studio-session";
 import { createVideoPosterDataUrl } from "../../../../../lib/video-poster";
@@ -183,17 +184,13 @@ export default async function VideoPage({
         <div className="video-review-layout">
           <main className="video-player-card">
             <div className="video-player-frame">
-              <video
-                controls
-                preload="metadata"
-                poster={createVideoPosterDataUrl(
+              <VideoPreviewPlayer
+                src={videoUrl}
+                fallbackPoster={createVideoPosterDataUrl(
                   plan.project.title,
                   job.output?.durationSeconds ?? 0,
                 )}
-                src={videoUrl}
-              >
-                Your browser does not support video playback.
-              </video>
+              />
             </div>
             <div className="video-player-copy">
               <span className="studio-eyebrow">PRIVATE PREVIEW</span>
