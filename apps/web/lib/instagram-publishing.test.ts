@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isInstagramReelCompatible } from "./instagram-publishing";
+import {
+  getInstagramReelThumbnailOffset,
+  isInstagramReelCompatible,
+} from "./instagram-publishing";
 
 const approvedRender = {
   mimeType: "video/mp4",
@@ -31,5 +34,17 @@ describe("Instagram Reel compatibility", () => {
         byteLength: 1_000_000_001,
       }),
     ).toBe(false);
+  });
+});
+
+describe("Instagram Reel thumbnail selection", () => {
+  it("selects a representative frame after Motionly's opening transition", () => {
+    expect(getInstagramReelThumbnailOffset(45)).toBe("3000");
+    expect(getInstagramReelThumbnailOffset(30)).toBe("3000");
+    expect(getInstagramReelThumbnailOffset(12)).toBe("1200");
+  });
+
+  it("always stays at least one second into a short compatible Reel", () => {
+    expect(getInstagramReelThumbnailOffset(3)).toBe("1000");
   });
 });

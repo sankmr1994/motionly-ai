@@ -14,6 +14,7 @@ import { StudioShell } from "../../../../../components/studio-shell";
 import { VideoRenderActionButton } from "../../../../../components/video-render-action-button";
 import { VideoReviewActions } from "../../../../../components/video-review-actions";
 import { requireStudioSession } from "../../../../../lib/studio-session";
+import { createVideoPosterDataUrl } from "../../../../../lib/video-poster";
 import { reconcileVideoRenderForOwner } from "../../../../../lib/video-rendering";
 
 export const maxDuration = 300;
@@ -182,7 +183,15 @@ export default async function VideoPage({
         <div className="video-review-layout">
           <main className="video-player-card">
             <div className="video-player-frame">
-              <video controls preload="metadata" src={videoUrl}>
+              <video
+                controls
+                preload="metadata"
+                poster={createVideoPosterDataUrl(
+                  plan.project.title,
+                  job.output?.durationSeconds ?? 0,
+                )}
+                src={videoUrl}
+              >
                 Your browser does not support video playback.
               </video>
             </div>

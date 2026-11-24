@@ -61,6 +61,15 @@ export function isInstagramReelCompatible(source: {
   );
 }
 
+export function getInstagramReelThumbnailOffset(durationSeconds: number) {
+  const durationMilliseconds = Math.max(0, Math.floor(durationSeconds * 1_000));
+  const preferredOffset = Math.min(
+    3_000,
+    Math.floor(durationMilliseconds / 10),
+  );
+  return String(Math.max(1_000, preferredOffset));
+}
+
 export async function publishApprovedVideoToInstagram(input: {
   ownerId: string;
   projectId: string;
@@ -143,6 +152,7 @@ export async function publishApprovedVideoToInstagram(input: {
       video_url: mediaUrl,
       caption,
       share_to_feed: String(input.shareToFeed),
+      thumb_offset: getInstagramReelThumbnailOffset(source.durationSeconds),
       access_token: accessToken,
     });
     const container = await metaRequest(new URL(`${accountBase}/media`), {
