@@ -3,7 +3,19 @@ import {
   buildInstagramAuthorizationUrl,
   decryptInstagramToken,
   encryptInstagramToken,
+  resolveInstagramProviderAccount,
 } from "./instagram-oauth";
+import { afterEach, vi } from "vitest";
+
+vi.mock("@motionly/config", () => ({
+  getInstagramConfig: () => ({
+    graphVersion: "v27.0",
+  }),
+}));
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("Instagram OAuth", () => {
   it("builds a state-bound Unified Login URL", () => {
@@ -25,5 +37,49 @@ describe("Instagram OAuth", () => {
     const encrypted = encryptInstagramToken("private-token", key);
     expect(JSON.stringify(encrypted)).not.toContain("private-token");
     expect(decryptInstagramToken(encrypted, key)).toBe("private-token");
+  });
+
+  it("resolves the Instagram asset assigned by Unified Login", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: "system-user-123" }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: "instagram-456",
+                username: "motionly.video",
+                name: "Motionly Video",
+                account_type: "CREATOR",
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      );
+
+    await expect(
+      resolveInstagramProviderAccount("system-user-token"),
+    ).resolves.toEqual({
+      id: "instagram-456",
+      username: "motionly.video",
+      name: "Motionly Video",
+      accountType: "CREATOR",
+      apiHost: "graph.facebook.com",
+    });
+
+    expect(fetchMock.mock.calls[1]?.[0].toString()).toContain(
+      "/system-user-123/assigned_instagram_accounts",
+    );
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      headers: {
+        Authorization: "Bearer system-user-token",
+      },
+    });
   });
 });

@@ -65,7 +65,11 @@ export async function GET(request: NextRequest) {
         : undefined,
     });
     return settingsRedirect(request, "connected");
-  } catch {
+  } catch (error) {
+    console.error(
+      "[instagram-oauth] callback failed",
+      error instanceof Error ? error.message : "Unknown callback error",
+    );
     return settingsRedirect(request, "failed");
   }
 }

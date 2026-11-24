@@ -85,11 +85,41 @@ export function buildInstagramAuthorizationUrl(input: {
 }
 
 async function readJson<T>(response: Response): Promise<T> {
-  const body = (await response.json().catch(() => null)) as T | null;
+  const body = (await response.json().catch(() => null)) as
+    | (T & { error?: { message?: string; type?: string; code?: number } })
+    | null;
   if (!response.ok || !body) {
-    throw new Error("Meta did not complete the Instagram request.");
+    const details = body?.error;
+    const suffix = [details?.type, details?.code]
+      .filter((value) => value !== undefined)
+      .join("/");
+    throw new Error(
+      `Meta did not complete the Instagram request${suffix ? ` (${suffix})` : ""}.`,
+    );
   }
   return body;
+}
+
+type FacebookInstagramAccount = {
+  id: string;
+  username?: string;
+  name?: string;
+  account_type?: string;
+};
+
+async function readFacebookInstagramAccounts(
+  url: URL,
+  accessToken: string,
+) {
+  const result = await readJson<{ data?: FacebookInstagramAccount[] }>(
+    await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }),
+  );
+  return result.data ?? [];
 }
 
 export async function exchangeInstagramAuthorizationCode(code: string) {
@@ -127,6 +157,49 @@ export async function resolveInstagramProviderAccount(
   accessToken: string,
 ): Promise<InstagramProviderAccount> {
   const { graphVersion } = getInstagramConfig();
+
+  // Unified Login returns a system-user token with the selected Instagram
+  // asset assigned directly to that user. It does not require a Facebook Page.
+  try {
+    const meUrl = new URL(
+      `https://graph.facebook.com/${graphVersion}/me`,
+    );
+    meUrl.searchParams.set("fields", "id");
+    const me = await readJson<{ id?: string }>(
+      await fetch(meUrl, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }),
+    );
+    if (me.id) {
+      const assignedUrl = new URL(
+        `https://graph.facebook.com/${graphVersion}/${me.id}/assigned_instagram_accounts`,
+      );
+      assignedUrl.searchParams.set(
+        "fields",
+        "id,username,name,profile_picture_url,account_type",
+      );
+      const assigned = await readFacebookInstagramAccounts(
+        assignedUrl,
+        accessToken,
+      );
+      const selected = assigned[0];
+      if (selected) {
+        return {
+          id: selected.id,
+          username: selected.username,
+          name: selected.name,
+          accountType: selected.account_type,
+          apiHost: "graph.facebook.com",
+        };
+      }
+    }
+  } catch {
+    // Continue with legacy Page-linked and Instagram-only token fallbacks.
+  }
+
   const pagesUrl = new URL(
     `https://graph.facebook.com/${graphVersion}/me/accounts`,
   );
